@@ -961,7 +961,7 @@ const FieldDetailPage = () => {
 // Main App Component
 function App() {
   return (
-    <Router>
+    <Router basename="">
       <style>
         {`:root {
           --navbar-height: 64px;
