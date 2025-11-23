@@ -3,7 +3,7 @@
 ## 项目简介
 这是一个基于React + TypeScript + Vite构建的工程思政云平台。
 
-## 部署指南 (GitHub Pages)
+## 部署指南 (Gitee Pages)
 
 ### 准备工作
 1. 确保项目已经构建成功
@@ -12,85 +12,52 @@
    ```
    构建完成后会生成`dist`目录
 
-### GitHub Pages部署步骤（已优化）
+### Gitee Pages部署步骤
 
-### 方法一：手动部署（推荐，避免网络连接问题）
+#### 第一步：创建Gitee仓库
+1. 注册/登录[码云(Gitee)](https://gitee.com/)
+2. 点击右上角「+」号，选择「新建仓库」
+3. 填写仓库信息：
+   - 仓库名称：如`engineering-ideology-platform`
+   - 选择公开仓库
+   - 其他选项保持默认，点击「创建」
 
-1. **创建GitHub仓库**：
-   - 在GitHub上创建名为`engineering-ideology-platform`的公开仓库
-   - 配置GitHub Pages：Settings -> Pages -> Source选择「Deploy from a branch」-> Branch选择`main`或`master`
-
-2. **构建项目**：
+#### 第二步：上传项目文件
+1. 在本地项目根目录初始化Git仓库（如果尚未初始化）：
    ```bash
-   npm run build
+   git init
+   git add .
+   git commit -m "初始化项目"
    ```
 
-3. **修改配置**：
-   - 修改`vite.config.ts`中的base配置：
-   ```typescript
-   base: '/engineering-ideology-platform/',
-   ```
-
-4. **手动上传部署**：
-   - 构建完成后，打开`dist`目录
-   - 直接在GitHub仓库页面上传这些文件（最简单的方法）
-   - 或使用GitHub Desktop客户端拖拽上传
-
-### 方法二：使用gh-pages工具部署
-
-1. **安装依赖**：
+2. 关联Gitee仓库并推送代码：
    ```bash
-   npm install --save-dev gh-pages
+   git remote add origin https://gitee.com/你的用户名/engineering-ideology-platform.git
+   git push -u origin master
    ```
 
-2. **配置部署脚本**：
-   ```json
-   "scripts": {
-     "dev": "vite",
-     "build": "tsc && vite build",
-     "preview": "vite preview",
-     "deploy": "gh-pages -d dist"
-   }
-   ```
+#### 第三步：配置Gitee Pages
+1. 进入Gitee仓库页面
+2. 点击「服务」-> 「Gitee Pages」
+3. 在配置页面：
+   - 分支：选择`master`
+   - 目录：选择`dist`（重要！）
+   - 勾选「强制使用HTTPS」
+   - 点击「启动」按钮
 
-3. **尝试部署**：
-   ```bash
-   npm run build
-   npm run deploy
-   ```
-
-   如果遇到网络问题，尝试以下方法：
-   ```bash
-   # 增加缓存大小
-   git config http.postBuffer 524288000
-   ```
-
-### 方法三：使用GitHub Desktop（最简单）
-1. 下载安装[GitHub Desktop](https://desktop.github.com/)
-2. 克隆你的仓库
-3. 构建项目：`npm run build`
-4. 将`dist`目录中的文件复制到克隆的仓库文件夹中
-5. 提交并推送更改
-
-### 验证部署
-- 部署成功后，可以通过以下地址访问：
-  `https://你的GitHub用户名.github.io/engineering-ideology-platform/`
+#### 第四步：验证部署
+1. 稍等片刻，Gitee会自动部署你的项目
+2. 部署成功后，页面上会显示访问地址，格式通常为：
+   `https://你的用户名.gitee.io/engineering-ideology-platform`
+3. 访问该地址，确认网站可以正常运行
 
 ### 注意事项
-1. **React Router配置**：
-   - 如果使用BrowserRouter，确保设置了正确的basename
-   ```jsx
-   <BrowserRouter basename="/engineering-ideology-platform">
-   ```
-   - 或者考虑使用HashRouter来避免路径问题
-
+1. **React Router配置**：如果项目使用了React Router的BrowserRouter，需要确保在`vite.config.ts`中设置了正确的`base`路径
 2. **静态资源引用**：所有静态资源引用应使用相对路径，避免使用绝对路径
-
-3. **重新部署**：每次代码更新后，只需运行：
-   ```bash
-   npm run build
-   npm run deploy
-   ```
+3. **重新部署**：每次代码更新后，需要：
+   - 重新构建项目：`npm run build`
+   - 提交并推送更新：`git add . && git commit -m "更新内容" && git push`
+   - 在Gitee Pages页面点击「更新」按钮
 
 ## 本地开发
 ```bash
