@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { convertToBaiduAILink } from './src/utils/urlHelpers';
+import RedSpiritPage from './src/pages/RedSpiritPage';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
 import { Search, Menu, Home, GraduationCap, Rocket, Building2, Shield, Star, Users, Network, Brain, ArrowLeft } from 'lucide-react';
+// 从assets目录导入背景图片 - 标准ES模块导入方式
+import backgroundImage from './src/assets/background.jpg';
+import ImageTest from './src/components/ImageTest';
 
 // Mock data for the platform
 const mockData = {
@@ -129,10 +134,13 @@ const mockData = {
     }
   ],
   enterpriseNews: [
-    { id: 1, enterprise: '中国卫星网络集团有限公司', date: '2023-11-15', title: '中国星网启动低轨卫星星座建设', content: '中国星网集团正式启动低轨卫星互联网星座建设，计划在未来5年内发射数百颗通信卫星，构建覆盖全球的卫星通信网络。' },
-    { id: 2, enterprise: '国家电网有限公司', date: '2023-10-22', title: '国家电网数字化转型成果发布', content: '国家电网发布"数字电网"建设成果，实现电力系统全环节智能化管理，提高能源利用效率。' },
-    { id: 3, enterprise: '华为技术有限公司', date: '2023-09-18', title: '华为发布全栈AI解决方案', content: '华为推出面向行业的全栈AI解决方案，涵盖芯片、框架、应用等全链条，助力产业智能化升级。' },
-    { id: 4, enterprise: '奇安信科技集团股份有限公司', date: '2023-08-30', title: '奇安信发布新一代网络安全防护平台', content: '奇安信发布面向关键基础设施的新一代网络安全防护平台，实现威胁检测、响应、修复全流程自动化。' }
+    { id: 1, enterprise: '中国航天科工集团', date: '2025-11-05', title: '新一代可重复使用航天器成功首飞', content: '该航天器实现了水平起降、重复使用和快速响应发射能力，标志着我国航天运输系统进入新阶段，大幅降低了太空探索成本。' },
+    { id: 2, enterprise: '华为技术有限公司', date: '2025-10-20', title: '华为发布量子计算原型机', content: '该原型机在特定问题求解上实现了量子优势，为材料科学、密码学和优化问题研究提供了强大工具，是我国量子计算领域的重大突破。' },
+    { id: 3, enterprise: '北方华创科技集团', date: '2025-09-12', title: '5nm光刻机研发成功并实现量产', content: '这标志着我国在高端半导体制造设备领域取得了突破性进展，打破了长期以来的国外技术垄断，为国产芯片产业发展奠定了坚实基础。' },
+    { id: 4, enterprise: '中国电子科技集团', date: '2025-08-28', title: '6G通信试验网络完成核心技术验证', content: '该网络在超高速率、超低时延、超大规模连接等关键指标上全面超越现有5G网络，为2030年6G商用奠定了技术基础。' },
+    { id: 5, enterprise: '国家电网有限公司', date: '2025-07-15', title: '全球首条全超导高压输电线路投入运行', content: '该线路实现了电能的无损耗传输，传输效率达到100%，是电力传输技术的革命性突破，对全球能源转型具有重要意义。' },
+    { id: 6, enterprise: '北京微芯区块链研究院', date: '2025-06-30', title: '国产量子安全区块链平台通过国家级认证', content: '该平台结合量子密码和区块链技术，实现了信息的绝对安全传输和存储，已在金融、政务、医疗等领域成功应用。' },
+    { id: 7, enterprise: '奇安信科技集团股份有限公司', date: '2025-05-22', title: 'AI驱动的自主防御网络安全系统发布', content: '该系统具备智能感知、自主决策和自动响应能力，能够在毫秒级时间内识别和应对未知网络威胁，防护效率比传统系统提升100倍。' }
   ],
   greatSpirits: [
     { id: 1, name: '两弹一星精神', core: '热爱祖国、无私奉献，自力更生、艰苦奋斗，大力协同、勇于登攀', background: '源于20世纪50-70年代中国研制"两弹一星"的伟大实践', cases: ['钱学森归国报效', '邓稼先隐姓埋名28年', '郭永怀以身护文件'] },
@@ -152,8 +160,10 @@ const mockData = {
       description: '涵盖5G/6G、量子通信、卫星互联网等前沿技术领域',
       overview: '新一代信息通信技术是国家战略性、基础性、先导性产业，是建设数字中国的重要支撑。本领域聚焦通信网络、数据传输、信息处理等核心技术，培养具有国际视野、创新能力和责任担当的卓越工程师。',
       engineers: [
-        { name: '华为5G研发团队', achievement: '突破5G核心技术，推动全球5G标准制定', spirit: '协同创新、追求卓越' },
-        { name: '张忠谋', achievement: '创办台积电，引领全球半导体制造', spirit: '远见卓识、精益求精' }
+        { name: '王海峰', affiliation: '北京百度网讯科技有限公司', achievement: '在人工智能和自然语言处理领域取得重大突破，推动AI技术在多个行业的应用', spirit: '科技报国、创新引领' },
+        { name: '5G标准与产业创新团队', affiliation: '中国信息通信研究院', achievement: '推动5G标准制定与产业化，引领全球通信技术发展', spirit: '协同创新、追求卓越' },
+        { name: '朱衍波', affiliation: '民航数据通信有限责任公司', achievement: '推动民航通信技术创新，保障民航安全运行', spirit: '严谨务实、精益求精' },
+        { name: '高成臣', affiliation: '北京大学', achievement: '在光通信领域取得重要研究成果，推动高速光通信技术发展', spirit: '潜心科研、追求卓越' }
       ],
       technologyFrontiers: [
         '6G移动通信技术研发',
@@ -169,8 +179,9 @@ const mockData = {
       description: '包括操作系统、工业软件、基础软件等核心技术',
       overview: '关键软件是国家信息化建设的基础，关系到国家安全和产业安全。本领域专注于操作系统、数据库、中间件、工业软件等核心软件研发，培养具有深厚理论基础和工程实践能力的软件人才。',
       engineers: [
-        { name: '倪光南', achievement: '推动国产操作系统研发，倡导软件国产化', spirit: '自主创新、产业报国' },
-        { name: '中国科学院软件研究所团队', achievement: '研发麒麟操作系统，打破国外垄断', spirit: '攻坚克难、协同创新' }
+        { name: '窦强', affiliation: '飞腾信息技术有限公司', achievement: '推动国产CPU和基础软件发展，实现关键技术自主可控', spirit: '自主创新、产业报国' },
+        { name: '李平（女）', affiliation: '中国铁道科学研究院集团有限公司', achievement: '研发铁路信号控制软件，保障铁路运输安全', spirit: '严谨细致、安全至上' },
+        { name: '工业软件自主研发团队', affiliation: '国内重点高校和企业', achievement: '突破工业软件关键技术，打破国外垄断', spirit: '攻坚克难、协同创新' }
       ],
       technologyFrontiers: [
         '开源操作系统生态建设',
@@ -186,8 +197,9 @@ const mockData = {
       description: '涉及网络攻防、数据安全、隐私保护等关键技术',
       overview: '网络安全是数字经济时代的安全基石，关系到国家主权、安全和发展利益。本领域专注于网络空间安全理论与技术，培养具有高度政治责任感、过硬技术本领的网络安全人才。',
       engineers: [
-        { name: '王小云', achievement: '破解MD5、SHA-1等密码算法，推动密码学发展', spirit: '严谨治学、勇攀高峰' },
-        { name: '奇安信安全团队', achievement: '研发网络安全防护系统，保障关键信息基础设施安全', spirit: '责任担当、技术过硬' }
+        { name: '王小云', affiliation: '山东大学', achievement: '破解MD5、SHA-1等密码算法，推动密码学发展，为网络安全提供理论基础', spirit: '严谨治学、勇攀高峰' },
+        { name: '邱旭华', affiliation: '公安部第一研究所', achievement: '研发网络安全防护技术，保障国家关键信息基础设施安全', spirit: '责任担当、技术过硬' },
+        { name: '网络信息系统科研创新团队', affiliation: '中国人民解放军军事科学院', achievement: '突破网络安全核心技术，构建网络防御体系', spirit: '忠诚使命、科技强军' }
       ],
       technologyFrontiers: [
         '零信任安全架构',
@@ -203,8 +215,9 @@ const mockData = {
       description: '包含机器学习、深度学习、智能算法等研究方向',
       overview: '人工智能是引领新一轮科技革命和产业变革的战略性技术。本领域聚焦AI基础理论、关键技术和行业应用，培养兼具创新能力和工程实践的复合型AI人才。',
       engineers: [
-        { name: '黄铁军', achievement: '推动计算机视觉研究，应用于国家安全领域', spirit: '科技报国、勇于创新' },
-        { name: '旷视科技团队', achievement: '研发人脸识别技术，推动AI产业化应用', spirit: '创新技术、产业落地' }
+        { name: '王海峰', affiliation: '北京百度网讯科技有限公司', achievement: '在自然语言处理和大模型技术领域取得突破，推动AI技术产业应用', spirit: '科技报国、创新引领' },
+        { name: '吴凯', affiliation: '宁德时代新能源科技股份有限公司', achievement: '将AI技术应用于新能源领域，推动电池技术智能化发展', spirit: '跨界融合、创新应用' },
+        { name: '智能微系统团队', affiliation: '启元实验室', achievement: '研发AI芯片和智能系统，推动AI基础设施建设', spirit: '自主创新、追求卓越' }
       ],
       technologyFrontiers: [
         '大模型技术与应用',
@@ -220,8 +233,10 @@ const mockData = {
       description: '聚焦芯片设计、制造工艺、材料科学等核心环节',
       overview: '半导体是信息技术产业的基础，被誉为"工业粮食"。本领域专注于芯片设计、制造工艺、封装测试等全产业链关键技术，培养具有国际视野和创新精神的半导体人才。',
       engineers: [
-        { name: '张汝京', achievement: '创办中芯国际，推动中国半导体制造发展', spirit: '产业报国、坚韧不拔' },
-        { name: '中国科学院微电子研究所团队', achievement: '研发先进光刻胶，突破关键材料瓶颈', spirit: '协同创新、自主可控' }
+        { name: '12英寸减压外延团队', affiliation: '北京北方华创微电子装备有限公司', achievement: '突破半导体装备关键技术，推动芯片制造工艺进步', spirit: '自主创新、精益求精' },
+        { name: '蔡树军', affiliation: '中国电子科技集团公司第五十八研究所', achievement: '在集成电路设计领域取得重要成果，推动芯片技术发展', spirit: '匠心筑梦、科技报国' },
+        { name: '化合物芯片技术团队', affiliation: '中国电科产业基础研究院', achievement: '研发化合物半导体技术，突破关键材料和器件瓶颈', spirit: '协同创新、追求卓越' },
+        { name: '曹堪宇', affiliation: '长鑫存储技术有限公司', achievement: '推动存储器技术创新，实现存储芯片自主研发', spirit: '产业报国、坚韧不拔' }
       ],
       technologyFrontiers: [
         '先进工艺制程研发',
@@ -237,8 +252,11 @@ const mockData = {
       description: '涵盖卫星通信、导航定位、遥感技术等航天领域',
       overview: '航天卫星互联网是国家战略性新兴产业，是构建天地一体化信息网络的重要组成部分。本领域聚焦卫星系统设计、发射、运营等全链条技术，培养具有航天精神的卓越工程师。',
       engineers: [
-        { name: '孙家栋', achievement: '北斗导航系统总设计师，中国航天事业奠基人', spirit: '严谨求实、勇于创新' },
-        { name: '航天科技集团团队', achievement: '嫦娥探月工程，实现中国月球探测突破', spirit: '自主创新、协同攻坚' }
+        { name: '王珏', affiliation: '中国运载火箭技术研究院', achievement: '推动运载火箭技术创新，实现火箭重复使用', spirit: '科技强军、创新突破' },
+        { name: '王大轶', affiliation: '北京空间飞行器总体设计部', achievement: '在航天器设计领域取得重要成果，推动深空探测技术发展', spirit: '严谨务实、追求卓越' },
+        { name: '刘继忠', affiliation: '探月与航天工程中心', achievement: '推动探月工程实施，实现月球探测技术突破', spirit: '勇于探索、协同攻坚' },
+        { name: '中国天眼工程团队', affiliation: '中国科学院国家天文台', achievement: '建成500米口径球面射电望远镜，推动天文观测技术发展', spirit: '自主创新、追求极致' },
+        { name: '液氧煤油发动机研制团队', affiliation: '中国航天科技集团有限公司第六研究院', achievement: '突破火箭发动机关键技术，推动航天动力系统发展', spirit: '攻坚克难、精益求精' }
       ],
       technologyFrontiers: [
         '低轨卫星星座组网技术',
@@ -316,7 +334,8 @@ const CaseDetailPage = () => {
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* 确保内容区域完全浮动在背景之上 */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10 bg-white bg-opacity-95 rounded-xl shadow-lg">
         <div className="flex flex-col md:flex-row gap-8">
           {/* 主内容区 */}
           <div className="md:w-2/3">
@@ -465,7 +484,8 @@ const EngineerStoryPage = () => {
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* 确保内容区域完全浮动在背景之上 */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10 bg-white bg-opacity-95 rounded-xl shadow-lg mt-8">
         <div className="flex flex-col md:flex-row gap-8">
           {/* 主内容区 */}
           <div className="md:w-2/3">
@@ -650,7 +670,8 @@ const EngineerAchievementPage = () => {
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* 确保内容区域完全浮动在背景之上 */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10 bg-white bg-opacity-95 rounded-xl shadow-lg">
         <div className="flex flex-col md:flex-row gap-8">
           {/* 主内容区 */}
           <div className="md:w-2/3">
@@ -826,29 +847,79 @@ const FieldDetailPage = () => {
             
             {/* 卓越工程师标杆 */}
             <section className="bg-white rounded-xl shadow-md p-6 mb-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
                 <Users className="w-6 h-6 mr-2 text-amber-600" />
                 卓越工程师标杆
               </h2>
+              <div className="mb-6">
+                <a 
+                  href="https://www.gov.cn/zhengce/202401/content_6927128.htm" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                >
+                  国务院关于表彰国家卓越工程师和国家卓越工程师团队的决定
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                  </svg>
+                </a>
+              </div>
+              <div className="mb-4 bg-gradient-to-r from-amber-50 to-amber-100 p-4 rounded-lg border border-amber-200">
+                <p className="text-gray-800 italic">
+                  工程师群体爱党报国、服务人民、敬业奉献、严谨笃实、精益求精、臻于卓越、团结协作、自立自强的崇高追求和宝贵精神，是新时代工程师的典范。
+                </p>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {fieldDetail.engineers.map((engineer, index) => (
-                  <div key={index} className="bg-amber-50 rounded-lg p-5 border border-amber-100">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">{engineer.name}</h3>
-                    <p className="text-gray-700 mb-3 text-sm">{engineer.achievement}</p>
-                    <div className="bg-white px-2 py-1 rounded inline-flex items-center text-sm">
-                      <Star className="w-4 h-4 mr-1 text-amber-500" />
-                      <span className="text-amber-800 font-medium">{engineer.spirit}</span>
+                {fieldDetail.engineers.map((engineer, index) => {
+                  // 提取工程师名称，移除团队后缀
+                  const engineerName = engineer.name.replace(/团队$/, '').replace(/（.*）/, '').trim();
+                  return (
+                    <div key={index} className="bg-white rounded-lg p-5 border border-amber-200 shadow-sm hover:shadow-md transition-shadow duration-300 transform hover:-translate-y-1 transition-transform duration-300">
+                      <h3 className="text-xl font-bold mb-1">
+                        <a 
+                          href={convertToBaiduAILink(engineerName)} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-blue-700 hover:text-blue-900 hover:underline"
+                        >
+                          {engineer.name}
+                        </a>
+                      </h3>
+                      {engineer.affiliation && (
+                        <p className="text-gray-500 text-sm mb-3 flex items-center">
+                          <Building2 className="w-4 h-4 mr-1" />
+                          {engineer.affiliation}
+                        </p>
+                      )}
+                      <p className="text-gray-700 mb-3 text-sm">{engineer.achievement}</p>
+                      <div className="bg-amber-50 px-3 py-2 rounded inline-flex items-center text-sm">
+                        <Star className="w-4 h-4 mr-1 text-amber-500" />
+                        <span className="text-amber-800 font-medium">{engineer.spirit}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+              <div className="mt-6 text-gray-600 text-center text-sm">
+                共展示 {fieldDetail.engineers.length} 位国家卓越工程师及团队
               </div>
             </section>
             
             {/* 技术前沿 */}
             <section className="bg-white rounded-xl shadow-md p-6 mb-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                <Rocket className="w-6 h-6 mr-2 text-purple-600" />
-                技术前沿
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-between">
+                <span className="flex items-center">
+                  <Rocket className="w-6 h-6 mr-2 text-purple-600" />
+                  技术前沿
+                </span>
+                <a 
+                  href="https://www.ict.ac.cn/xwzx/kjdt/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center hover:underline"
+                >
+                  查看更多 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                </a>
               </h2>
               <div className="flex flex-wrap gap-3">
                 {fieldDetail.technologyFrontiers.map((frontier, index) => (
@@ -860,6 +931,41 @@ const FieldDetailPage = () => {
                     {frontier}
                   </span>
                 ))}
+              </div>
+            </section>
+            
+            {/* 近3个月内关于该领域的热点事件 */}
+            <section className="bg-white rounded-xl shadow-md p-6 mb-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-between">
+                <span className="flex items-center">
+                  <Network className="w-6 h-6 mr-2 text-blue-600" />
+                  近3个月内关于{fieldDetail.name}的热点事件
+                </span>
+                <a 
+                  href={convertToBaiduAILink(`${fieldDetail.name} 最新动态 2025`)} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center hover:underline"
+                >
+                  查看更多 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                </a>
+              </h2>
+              <div className="space-y-4">
+                <div className="border-l-4 border-blue-500 pl-4 py-1">
+                  <h3 className="font-bold text-gray-800">{fieldDetail.name}领域重大项目启动</h3>
+                  <p className="text-gray-600 text-sm mt-1">国家发改委近日批复{fieldDetail.name}领域重大项目，总投资超过200亿元，将推动产业技术升级。</p>
+                  <span className="text-gray-400 text-xs mt-1 block">2025-10-15</span>
+                </div>
+                <div className="border-l-4 border-blue-500 pl-4 py-1">
+                  <h3 className="font-bold text-gray-800">行业标准发布</h3>
+                  <p className="text-gray-600 text-sm mt-1">工信部正式发布{fieldDetail.name}领域两项国家标准，填补了国内相关技术标准空白。</p>
+                  <span className="text-gray-400 text-xs mt-1 block">2025-09-28</span>
+                </div>
+                <div className="border-l-4 border-blue-500 pl-4 py-1">
+                  <h3 className="font-bold text-gray-800">产学研合作新进展</h3>
+                  <p className="text-gray-600 text-sm mt-1">国内多所高校与龙头企业联合成立{fieldDetail.name}创新研究院，聚焦关键技术攻关。</p>
+                  <span className="text-gray-400 text-xs mt-1 block">2025-09-05</span>
+                </div>
               </div>
             </section>
             
@@ -961,7 +1067,7 @@ const FieldDetailPage = () => {
 // Main App Component
 function App() {
   return (
-    <Router basename="">
+    <Router basename="/buptstar">
       <style>
         {`:root {
           --navbar-height: 64px;
@@ -980,6 +1086,8 @@ function App() {
            <Route path="/engineer-achievements/:engineerId" element={<EngineerAchievementPage />} />
            <Route path="/enterprises" element={<EnterprisesPage />} />
            <Route path="/spirits" element={<SpiritsPage />} />
+        <Route path="/red-spirit" element={<RedSpiritPage />} />
+           <Route path="/image-test" element={<ImageTest />} />
            <Route path="/platforms" element={<PlatformsPage />} />
            <Route path="/personalized" element={<PersonalizedPage />} />
          </Routes>
@@ -988,14 +1096,14 @@ function App() {
   );
 }
 
-// Navigation Component
-const Navigation = ({ currentPage }: { currentPage: string }) => {
-  const navigate = useNavigate();
+// Navigation Component - 导出为命名导出组件
+export const Navigation = ({ currentPage, style }: { currentPage: string; style?: React.CSSProperties }) => {
+  // const navigate = useNavigate();
   
   const navItems = [
     { path: "/", label: "首页", icon: Home },
     { path: "/fields", label: "星途领航", icon: GraduationCap },
-    { path: "/red-engineers", label: "红邮铸魂", icon: Star },
+    { path: "/red-spirit", label: "红邮铸魂", icon: Star },
     { path: "/enterprises", label: "星联企迹", icon: Building2 },
     { path: "/spirits", label: "精神传承", icon: Shield },
     { path: "/platforms", label: "政通星联", icon: Network },
@@ -1003,7 +1111,7 @@ const Navigation = ({ currentPage }: { currentPage: string }) => {
   ];
 
   return (
-    <nav className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white shadow-lg fixed w-full z-50">
+    <nav className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white shadow-lg fixed w-full z-50" style={style}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -1023,8 +1131,7 @@ const Navigation = ({ currentPage }: { currentPage: string }) => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    currentPage === item.label
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 whitespace-nowrap min-w-[80px] text-center ${currentPage === item.label
                       ? 'bg-blue-700 text-white'
                       : 'hover:bg-blue-700 hover:text-white'
                   }`}
@@ -1079,37 +1186,41 @@ const SearchBar = () => {
 // Page Components
 const HomePage = () => {
   // 注：页面组件内导航栏设置
-  // pt-0：设置顶部边距，确保导航栏与页面顶部有适当间距
-  // Navigation组件：显示导航栏，currentPage参数用于高亮当前页面
+  // 直接渲染Navigation组件，与其他页面保持一致的导航体验
   // 使用CSS变量--navbar-height设置内容区域顶部内边距，与导航栏高度保持一致
+  
+  useEffect(() => {
+    // 设置导航栏高度的CSS变量
+    const navbarHeight = 64; // 与导航栏h-16类对应(16 * 4px = 64px)
+    document.documentElement.style.setProperty('--navbar-height', `${navbarHeight}px`);
+  }, []);
+  
   return (
-    <div className="pt-0">
-      <Navigation currentPage="首页" />
+    <div>
+      {/* 导航栏需要更高的z-index */}
+      <Navigation currentPage="首页" style={{ position: 'relative', zIndex: 20 }} />
       
-      <div style={{ paddingTop: 'var(--navbar-height)' }} className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">邮联星课</h1>
-          <p className="text-xl text-blue-200 mb-8">数智赋能定制化工程思政云平台</p>
+      <div style={{ paddingTop: 'var(--navbar-height)' }} className="relative py-10 sm:py-20 min-h-[600px] sm:min-h-[1000px] flex items-center justify-center">
+        {/* 固定背景图片 */}
+        <img 
+          src={backgroundImage} 
+          alt="背景图片" 
+          className="fixed inset-0 w-full h-full object-cover z-0"
+          style={{ 
+            minHeight: '100vh', // 确保背景覆盖整个视口高度
+            width: '100%',
+            height: '100%'
+          }}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="max-w-3xl mx-auto">
-            <p className="text-lg mb-8">
-              聚焦ICT全产业链卓越工程人才培养，推动"思政教育+工程实践+行业特色"深度融合，打造理论共学、技术共研、难题共克的校企协同育人新生态
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link to="/fields" className="bg-yellow-400 text-blue-900 font-bold px-6 py-3 rounded-lg hover:bg-yellow-300 transition duration-300">
-                星途领航
-              </Link>
-              <Link to="/red-engineers" className="bg-red-500 text-white font-bold px-6 py-3 rounded-lg hover:bg-red-600 transition duration-300">
-                红邮铸魂
-              </Link>
-              <Link to="/enterprises" className="bg-green-600 text-white font-bold px-6 py-3 rounded-lg hover:bg-green-700 transition duration-300">
-                星联企迹
-              </Link>
-            </div>
+            {/* 按钮已删除 */}
           </div>
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* 确保内容区域完全浮动在背景之上 */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10 bg-white bg-opacity-95 rounded-xl shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           <div className="bg-white rounded-xl shadow-md p-6 border border-blue-100">
             <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
@@ -1181,7 +1292,8 @@ const HomePage = () => {
         </div>
       </div>
       
-      <footer className="bg-gray-800 text-white py-8 mt-16">
+      {/* 页脚需要更高的z-index和半透明背景 */}
+      <footer className="bg-gray-800 bg-opacity-95 text-white py-8 mt-16 relative z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
@@ -1267,43 +1379,66 @@ const FieldsPage = () => {
       </div>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {filteredFields.map((field) => (
-            <div key={field.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-blue-100 hover:shadow-lg transition-shadow duration-300">
-              <div className="p-6">
-                <div className="flex items-start">
-                  <div className="bg-blue-100 text-blue-800 rounded-lg p-2 mr-4 mt-1">
-                    <GraduationCap className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">{field.name}</h3>
-                    <p className="text-gray-600 mb-4">{field.description}</p>
-                    
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {field.subSections.map((section, index) => (
-                        <span key={index} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
-                          {section}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-blue-50">
-                      <span className="text-sm text-blue-600 font-medium">思政培养矩阵</span>
-                      <button 
-                        onClick={() => handleViewDetails(field.id)}
-                        className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
-                      >
-                        详情 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
-                      </button>
+        {filteredFields.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {filteredFields.map((field) => (
+                <div key={field.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-blue-100 hover:shadow-lg transition-shadow duration-300">
+                  <div className="p-6">
+                    <div className="flex items-start">
+                      <div className="bg-blue-100 text-blue-800 rounded-lg p-2 mr-4 mt-1">
+                        <GraduationCap className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">{field.name}</h3>
+                        <p className="text-gray-600 mb-4">{field.description}</p>
+                        
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {field.subSections.map((section, index) => (
+                            <span key={index} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
+                              {section}
+                            </span>
+                          ))}
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row justify-between mt-4 pt-4 border-t border-blue-50 gap-3">
+                          <span className="text-sm text-blue-600 font-medium">思政培养矩阵</span>
+                          <div className="flex gap-4">
+                            <button 
+                              onClick={() => handleViewDetails(field.id)}
+                              className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                            >
+                              详情 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                            </button>
+                            <a
+                              href={convertToBaiduAILink(`${field.name} 领域 最新资讯`)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center"
+                            >
+                              查看更多资讯 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-        
-        {filteredFields.length === 0 && (
+            
+            <div className="mt-10 text-center">
+              <a
+                href={convertToBaiduAILink('ICT领域 最新技术发展 产业趋势')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-full hover:from-blue-700 hover:to-indigo-700 transition-colors duration-300"
+              >
+                查看全部领域最新动态 <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+              </a>
+            </div>
+          </>
+        ) : (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">未找到与 "{searchTerm}" 相关的领域</p>
             <button 
@@ -1426,14 +1561,24 @@ const RedEngineersPage = () => {
                       <h3 className="text-xl font-bold text-gray-800 mb-2">{item.title}</h3>
                       <p className="text-gray-600 mb-4">{item.background}</p>
                       
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-red-50">
-                        <span className="text-sm text-red-600 font-medium">历史意义：{item.significance}</span>
-                        <button 
-                          onClick={() => navigate(`/cases/${item.id}`)}
-                          className="text-red-600 hover:text-red-800 font-medium flex items-center"
+                      <div className="mt-4 pt-4 border-t border-red-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm text-red-600 font-medium">历史意义：{item.significance}</span>
+                          <button 
+                            onClick={() => navigate(`/cases/${item.id}`)}
+                            className="text-red-600 hover:text-red-800 font-medium flex items-center"
+                          >
+                            详情 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                          </button>
+                        </div>
+                        <a 
+                          href={convertToBaiduAILink(`${item.title} ${item.field}`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center text-sm"
                         >
-                          详情 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
-                        </button>
+                          查看更多相关资料 <ArrowLeft className="w-4 h-4 ml-1 rotate-180 transition-transform duration-300 hover:translate-x-1" />
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -1478,19 +1623,29 @@ const RedEngineersPage = () => {
                         精神内核：{item.spirit}
                       </p>
                       
-                      <div className="flex items-center justify-between mt-2">
-                        <button 
-                          onClick={() => navigate(`/engineer-stories/${item.id}`)}
-                          className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between mb-3">
+                          <button 
+                            onClick={() => navigate(`/engineer-stories/${item.id}`)}
+                            className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                          >
+                            成长故事 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                          </button>
+                          <button 
+                            onClick={() => navigate(`/engineer-achievements/${item.id}`)}
+                            className="text-green-600 hover:text-green-800 font-medium flex items-center"
+                          >
+                            事迹详情 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                          </button>
+                        </div>
+                        <a 
+                          href={convertToBaiduAILink(`${item.name} ${item.field} 事迹`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center text-sm"
                         >
-                          成长故事 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
-                        </button>
-                        <button 
-                          onClick={() => navigate(`/engineer-achievements/${item.id}`)}
-                          className="text-green-600 hover:text-green-800 font-medium flex items-center"
-                        >
-                          事迹详情 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
-                        </button>
+                          查看更多相关资料 <ArrowLeft className="w-4 h-4 ml-1 rotate-180 transition-transform duration-300 hover:translate-x-1" />
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -1571,20 +1726,53 @@ const EnterprisesPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-4">联培企业名录</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {[
-              '中国航天科工集团', '中国ships集团', '中国电子科技集团', '中国石油化工集团',
-              '国家石油天然气管网集团', '国家电网有限公司', '中国电信集团', '中国联通集团',
-              '中国移动通信集团', '中国卫星网络集团', '中国铁路通信信号集团', '北方华创科技集团',
-              '北京微芯区块链研究院', '北京燕东微电子', '华为技术有限公司', '小米科技',
-              '奇安信科技集团', '中关村国家实验室'
+              { name: '中国航天科工集团', url: 'http://www.casic.com.cn' },
+              { name: '中国船舶集团', url: 'http://www.cssc.net.cn' },
+              { name: '中国电子科技集团', url: 'http://www.cetc.com.cn' },
+              { name: '中国石油化工集团', url: 'http://www.sinopec.com' },
+              { name: '国家石油天然气管网集团', url: 'http://www.pipechina.com.cn' },
+              { name: '国家电网有限公司', url: 'http://www.sgcc.com.cn' },
+              { name: '中国电信集团', url: 'http://www.chinatelecom.com.cn' },
+              { name: '中国联通集团', url: 'http://www.chinaunicom.com.cn' },
+              { name: '中国移动通信集团', url: 'http://www.10086.cn' },
+              { name: '中国卫星网络集团', url: 'http://www.chinastarnet.cn' },
+              { name: '中国信息通信科技集团', url: 'http://www.cict.com.cn' },
+              { name: '中国铁路通信信号集团', url: 'http://www.crsc.cn' },
+              { name: '中国信息通信集团有限公司', url: 'http://www.cic.cn' },
+              { name: '北方华创科技集团', url: 'http://www.naura.com' },
+              { name: '北京微芯区块链研究院', url: 'http://www.bjbca.net' },
+              { name: '北京燕东微电子', url: 'http://www.yd-electronics.com' },
+              { name: '华为技术有限公司', url: 'http://www.huawei.com' },
+              { name: '小米科技', url: 'http://www.mi.com' },
+              { name: '奇安信科技集团', url: 'http://www.qianxin.com' },
+              { name: '中关村国家实验室', url: 'http://www.zgc.gov.cn' }
             ].map((enterprise, index) => (
-              <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-3 text-center hover:bg-green-100 transition-colors duration-200">
-                <p className="text-green-800 text-sm font-medium">{enterprise}</p>
-              </div>
+              <a 
+                key={index} 
+                href={enterprise.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="block bg-green-50 border border-green-200 rounded-lg p-3 text-center hover:bg-green-100 transition-colors duration-200 hover:shadow-md group"
+              >
+                <p className="text-green-800 text-sm font-medium group-hover:text-green-700 group-hover:underline">
+                  {enterprise.name}
+                </p>
+              </a>
             ))}
           </div>
         </div>
         
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">企业大事记</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-between">
+          企业大事记
+          <a 
+            href="https://www.cac.gov.cn/xxgk/gzk/content_4205484.html" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 hover:text-blue-800 flex items-center hover:underline"
+          >
+            查看更多 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+          </a>
+        </h2>
         <div className="space-y-6">
           {filteredNews.map((news) => (
             <div key={news.id} className="bg-white rounded-xl shadow-md p-6 border border-green-100 hover:shadow-lg transition-shadow duration-300">
@@ -1690,13 +1878,21 @@ const SpiritsPage = () => {
                   <h3 className="text-xl font-bold text-gray-800 mb-2">{spirit.name}</h3>
                   <p className="text-purple-700 font-medium mb-3">"{spirit.core.split('，')[0]}..."</p>
                   <p className="text-gray-600 mb-4">{spirit.background}</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mb-4">
                     {spirit.cases.slice(0, 2).map((caseItem, index) => (
                       <span key={index} className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-sm">
                         {caseItem}
                       </span>
                     ))}
                   </div>
+                  <a
+                    href={convertToBaiduAILink(`${spirit.name} 精神内涵`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center"
+                  >
+                    查看更多内涵 <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                  </a>
                 </div>
                 <div className="bg-purple-50 px-6 py-3 text-right">
                   <span className="text-purple-600 font-medium flex items-center justify-end">
@@ -1806,7 +2002,15 @@ const PersonalizedPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-xl shadow-md p-6 border border-indigo-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">智能推荐内容</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">智能推荐内容</h2>
+                <a href={convertToBaiduAILink('ICT领域思政教育')} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center transition-colors duration-200">
+                  查看更多推荐
+                  <svg className="w-4 h-4 ml-1 transition-transform duration-200 transform hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </a>
+              </div>
               
               <div className="space-y-4">
                 <div className="flex items-start p-4 bg-indigo-50 rounded-lg">
@@ -1854,7 +2058,15 @@ const PersonalizedPage = () => {
             </div>
             
             <div className="bg-white rounded-xl shadow-md p-6 border border-indigo-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">学习数据分析</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">学习数据分析</h2>
+                <a href="#" className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center transition-colors duration-200">
+                  查看详细报告
+                  <svg className="w-4 h-4 ml-1 transition-transform duration-200 transform hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </a>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-blue-50 p-4 rounded-lg text-center">
@@ -1879,7 +2091,15 @@ const PersonalizedPage = () => {
           
           <div className="space-y-8">
             <div className="bg-white rounded-xl shadow-md p-6 border border-indigo-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">学习计划定制</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">学习计划定制</h2>
+                <a href={convertToBaiduAILink('ICT领域个性化学习设计')} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center transition-colors duration-200">
+                  查看模板
+                  <svg className="w-4 h-4 ml-1 transition-transform duration-200 transform hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </a>
+              </div>
               
               <div className="space-y-4">
                 <div>
@@ -1911,7 +2131,15 @@ const PersonalizedPage = () => {
             </div>
             
             <div className="bg-white rounded-xl shadow-md p-6 border border-indigo-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">工程师画像</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">工程师画像</h2>
+                <a href="#" className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center transition-colors duration-200">
+                  查看完整报告
+                  <svg className="w-4 h-4 ml-1 transition-transform duration-200 transform hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </a>
+              </div>
               
               <div className="space-y-3">
                 <div>
@@ -1942,6 +2170,16 @@ const PersonalizedPage = () => {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div className="bg-indigo-600 h-2 rounded-full" style={{ width: '78%' }}></div>
                   </div>
+                </div>
+                
+                <div className="mt-6">
+                  <h3 className="font-medium text-gray-700 mb-2">提升建议</h3>
+                  <a href={convertToBaiduAILink('ICT工程师创新精神培养')} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center transition-colors duration-200">
+                    查看创新能力提升资源
+                    <svg className="w-4 h-4 ml-1 transition-transform duration-200 transform hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </a>
                 </div>
                 
                 <div>

@@ -8,7 +8,7 @@ export default defineConfig({
   // 对于GitHub Pages：
   // - 如果部署到 https://username.github.io/，保持base: './'（相对路径）
   // - 如果部署到 https://username.github.io/repo-name/，则设置base: '/repo-name/'
-  // 例如：仓库地址是 https://github.com/username/my-project
-  // 则base应该设置为 '/my-project/'
-  base: './', // 使用相对路径以便在不同环境下都能正常工作
+  // 当前仓库是 https://github.com/talent5978/buptstar
+  // 因此base设置为 '/buptstar/'
+  base: '/buptstar/', // 设置为仓库名，确保GitHub Pages部署时资源路径正确
 })
