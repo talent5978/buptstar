@@ -1,39 +1,41 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI, GenerationConfig } from '@google/generative-ai';
 import { FIELD_KNOWLEDGE_DB } from '../data/knowledgeData';
 import { CASE_DB } from '../data/redSoulData';
 
+// 初始化GoogleGenAI客户端
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
+  // 从环境变量获取API密钥
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
   if (!apiKey) {
-    console.error("API_KEY is missing in environment variables.");
+    console.error('Gemini API key is not configured. Please set VITE_GEMINI_API_KEY in your environment.');
     return null;
   }
-  
-  // 检查API密钥是否为占位符
-  if (apiKey === 'your_actual_gemini_api_key_here' || apiKey === 'PLACEHOLDER_API_KEY') {
-    console.error("API_KEY is still using a placeholder value. Please update it with a real API key.");
+
+  try {
+    return new GoogleGenerativeAI(apiKey);
+  } catch (error) {
+    console.error('Failed to initialize Gemini client:', error);
     return null;
   }
-  
-  return new GoogleGenAI({ apiKey });
 };
 
-// Simple retrieval function to act as a basic RAG system
+// 从知识库中查找相关上下文
 const findRelevantContext = (query: string): string => {
-  let context = "";
-  
-  // Search Fields
+  let context = '';
+
+  // 搜索领域知识库
   Object.values(FIELD_KNOWLEDGE_DB).forEach(field => {
     if (query.includes(field.name) || field.overview.includes(query)) {
-      context += `\n[知识库 - ${field.name}领域]:\n${field.overview}\n${field.history}\n${field.future}\n`;
+      context += `\n[知识库 - ${field.name}领域]:\n${field.overview}\n${field.ideologicalPoint}\n${field.history}\n${field.future}\n`;
     }
   });
 
-  // Search Cases/People
+  // 搜索案例数据库
   Object.values(CASE_DB).forEach(item => {
-    if (query.includes(item.title) || item.fullContent.includes(query)) {
+    if (query.includes(item.title) || item.summary.includes(query)) {
       context += `\n[知识库 - ${item.title}]:\n${item.summary}\n${item.fullContent}\n`;
-       if (item.sourceUrl) {
+      if (item.sourceUrl) {
         context += `权威来源: ${item.sourceUrl}\n`;
       }
     }
@@ -43,25 +45,25 @@ const findRelevantContext = (query: string): string => {
 };
 
 export const generateStudyPlan = async (userQuery: string): Promise<string> => {
-  const ai = getAiClient();
-  if (!ai) {
-    return "系统配置错误：未检测到API密钥。请检查.env.local文件中的GEMINI_API_KEY设置。";
+  const genAI = getAiClient();
+  if (!genAI) {
+    return 'Gemini API客户端初始化失败。请检查API密钥配置。';
   }
 
-  // 1. Retrieve relevant context from our static database
+  // 1. 从静态数据库检索相关上下文
   const knowledgeContext = findRelevantContext(userQuery);
 
   const systemInstruction = `
-    你是由北京邮电大学和中国星网集团共同打造的“邮联星课”平台的AI思政导师。
-    你的名字叫“星课助手”。
+    你是由北京邮电大学和中国星网集团共同打造的"邮联星课"平台的AI思政导师。
+    你的名字叫"星课助手"。
     
     你的职责是：
-    1. 为学生生成“定制化工程思政学习计划”。
+    1. 为学生生成"定制化工程思政学习计划"。
     2. 解答关于ICT领域（通信、软件、网络安全、AI、半导体）和航天卫星互联网领域的历史、技术与精神内涵问题。
-    3. 弘扬“两弹一星”精神、探月精神和红色工程师文化。
+    3. 弘扬"两弹一星"精神、探月精神和红色工程师文化。
     
-    重要：我将为你提供平台内部的“知识库”内容。在回答时，请优先参考这些知识库内容，使得回答更具平台特色和专业性。
-    如果知识库内容提供了“权威来源”链接，请在回答的末尾引用它，格式为：[来源：XXX的权威资料](${'${item.sourceUrl}'})。
+    重要：我将为你提供平台内部的"知识库"内容。在回答时，请优先参考这些知识库内容，使得回答更具平台特色和专业性。
+    如果知识库内容提供了"权威来源"链接，请在回答中包含该链接。
     
     ${knowledgeContext ? `
 以下是相关的平台内部知识库内容：
@@ -77,27 +79,29 @@ ${knowledgeContext}
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    // 使用Gemini 2.5 Flash模型
+    const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
-      contents: userQuery,
-      config: {
-        systemInstruction: systemInstruction,
-      }
+      systemInstruction: systemInstruction
     });
+
+    const result = await model.generateContent(userQuery);
+    const response = await result.response;
+    const text = await response.text();
     
-    return response.text || "抱歉，我现在无法回答。请稍后再试。";
+    return text;
   } catch (error: any) {
     console.error("Gemini API Error:", error);
     
-    // 改进错误处理，提供更具体的错误信息
-    if (error?.message?.includes('API_KEY_INVALID') || error?.message?.includes('401')) {
-      return "API密钥无效或已过期。请检查.env.local文件中的GEMINI_API_KEY设置是否正确。";
-    } else if (error?.message?.includes('API_KEY_QUOTA_EXCEEDED') || error?.message?.includes('429')) {
-      return "API请求配额已用完。请稍后再试或联系管理员增加配额。";
-    } else if (error?.message?.includes('NETWORK_ERROR') || error?.message?.includes('ENOTFOUND')) {
-      return "网络连接异常，请检查您的网络设置。";
+    // 处理不同类型的错误
+    if (error?.message?.includes('API_KEY_INVALID') || error?.status === 401) {
+      return '无效的API密钥。请检查您的Gemini API密钥配置。';
+    } else if (error?.message?.includes('API_KEY_QUOTA_EXCEEDED') || error?.status === 429) {
+      return 'API配额已用完。请稍后再试。';
+    } else if (error?.message?.includes('NETWORK_ERROR') || error?.status === 503) {
+      return '网络错误。请检查您的互联网连接。';
     } else {
-      return "系统繁忙或发生未知错误，请稍后再试。";
+      return '生成学习计划失败。请稍后再试。';
     }
   }
 };
