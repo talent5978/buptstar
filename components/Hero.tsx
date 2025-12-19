@@ -7,7 +7,7 @@ const Hero: React.FC = () => {
       className="relative min-h-[90vh] flex flex-col items-center justify-end overflow-hidden text-white pt-16"
       style={{
         // 将图片作为背景图，确保从导航栏下方开始显示
-        backgroundImage: `url(/images/background.png)`,
+        backgroundImage: `url(/images/微信图片_20251125084549_241_4.png)`,
         backgroundSize: 'cover',
         backgroundPosition: 'center center',
         backgroundRepeat: 'no-repeat',

@@ -2,7 +2,57 @@
   "hash": "b223a1c7",
   "configHash": "f5a9a8ed",
   "lockfileHash": "6b729ccc",
-  "browserHash": "b124e74b",
-  "optimized": {},
-  "chunks": {}
+  "browserHash": "044f0753",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "9a121a09",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "4347e5a9",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "30f74c46",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "e3788dec",
+      "needsInterop": false
+    },
+    "react-markdown": {
+      "src": "../../node_modules/react-markdown/index.js",
+      "file": "react-markdown.js",
+      "fileHash": "879aa525",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "3d72ba0c",
+      "needsInterop": false
+    },
+    "recharts": {
+      "src": "../../node_modules/recharts/es6/index.js",
+      "file": "recharts.js",
+      "fileHash": "1092e4e1",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-UQ26FQ3S": {
+      "file": "chunk-UQ26FQ3S.js"
+    },
+    "chunk-7S7MPZBM": {
+      "file": "chunk-7S7MPZBM.js"
+    }
+  }
 }
