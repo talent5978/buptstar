@@ -15,6 +15,6 @@ View your app in AI Studio: https://ai.studio/apps/drive/1sK__KQSS4s_8Pvo9bBi2s7
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. 百度AI API已内置配置，无需额外设置
 3. Run the app:
    `npm run dev`

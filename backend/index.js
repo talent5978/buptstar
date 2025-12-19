@@ -2,7 +2,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const { generateStudyPlan } = require('./services/geminiService');
+const { generateStudyPlan } = require('./services/baiduService');
 
 // Load environment variables
 dotenv.config();
@@ -28,7 +28,27 @@ app.post('/api/study-plan', async (req, res) => {
     res.json({ result });
   } catch (error) {
     console.error('Error in API endpoint:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// Silicon Flow Test API Route
+app.post('/api/study-plan-silicon', async (req, res) => {
+  try {
+    const { query } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Query parameter is required' });
+    }
+    
+    // 使用用户提供的API密钥进行测试
+    const apiKey = 'sk-rzsqbeobflbmrxgyawtaeznmfbvqxifrylzilvmoafotacrt';
+    const siliconFlowService = require('./services/siliconFlowService');
+    const result = await siliconFlowService.generateStudyPlan(query, apiKey);
+    res.json({ result });
+  } catch (error) {
+    console.error('Error in Silicon Flow API endpoint:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

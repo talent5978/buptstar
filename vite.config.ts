@@ -12,8 +12,8 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.API_KEY': JSON.stringify('bce-v3/ALTAK-JFzKly2vCuIV8LnfdyX1W/a0ac65d30c610560dc4b72939c8826f7a390fce6'),
+        'process.env.BAIDU_API_KEY': JSON.stringify('bce-v3/ALTAK-JFzKly2vCuIV8LnfdyX1W/a0ac65d30c610560dc4b72939c8826f7a390fce6')
       },
       resolve: {
         alias: {

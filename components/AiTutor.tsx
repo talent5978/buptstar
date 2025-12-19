@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, User, Sparkles } from 'lucide-react';
-import { generateStudyPlan } from '../services/geminiService';
+import { generateStudyPlan } from '../services/baiduService';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage, ChatSender } from '../types';
 
@@ -75,7 +75,7 @@ const AiTutor: React.FC = () => {
                 <h2 className="text-3xl font-bold text-gray-800">数智定制<br/><span className="text-xl text-blue-600 font-medium">个性化学习助手</span></h2>
             </div>
             <p className="text-gray-600 mb-8 leading-relaxed">
-              依托Gemini大模型，为你提供专属的学习路径规划。无论是想要了解“两弹一星”背后的技术难点，还是制定新时代卓越工程师的成长路线，星课助手都能为你解答。
+              依托百度大模型，为你提供专属的学习路径规划。无论是想要了解“两弹一星”背后的技术难点，还是制定新时代卓越工程师的成长路线，星课助手都能为你解答。
             </p>
             <div className="space-y-4">
                 <div className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">推荐提问</div>
@@ -111,15 +111,59 @@ const AiTutor: React.FC = () => {
                                 {msg.sender === ChatSender.USER ? <User size={16} /> : <Bot size={16} />}
                             </div>
                             <div className={`p-4 rounded-2xl shadow-sm text-sm ${msg.sender === ChatSender.USER ? 'bg-star-red text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'}`}>
-                                <ReactMarkdown 
-                                    components={{
-                                        strong: ({node, ...props}) => <span className="font-bold text-yellow-500" {...props} />,
-                                        ul: ({node, ...props}) => <ul className="list-disc pl-4 mt-2 mb-2" {...props} />,
-                                        li: ({node, ...props}) => <li className="mb-1" {...props} />
-                                    }}
-                                >
-                                    {msg.text}
-                                </ReactMarkdown>
+                                <div>
+                                    {(() => {
+                                        // 将<think>标签内容提取并转换为带样式的div
+                                        let processedText = msg.text;
+                                        
+                                        // 处理大写和小写的think标签
+                                        processedText = processedText.replace(/<THINK>([\s\S]*?)<\/THINK>/g, '<think>$1</think>');
+                                        
+                                        // 如果包含<think>标签，拆分内容
+                                        if (processedText.includes('<think>')) {
+                                            const parts = processedText.split(/(<think>.*?<\/think>)/s);
+                                            return parts.map((part, index) => {
+                                                if (part.startsWith('<think>') && part.endsWith('</think>')) {
+                                                    // 处理思考部分
+                                                    const thinkContent = part.replace(/<\/?think>/g, '');
+                                                    return (
+                                                        <div key={index} className="bg-blue-50 border-l-4 border-blue-300 p-3 mb-4 rounded-r-md text-sm text-gray-600 italic">
+                                                            <span className="font-semibold text-blue-700">思考过程：</span>
+                                                            {thinkContent}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    // 处理普通markdown部分
+                                                    return (
+                                                        <ReactMarkdown 
+                                                            key={index}
+                                                            components={{
+                                                                strong: ({node, ...props}) => <span className="font-bold text-yellow-500" {...props} />,
+                                                                ul: ({node, ...props}) => <ul className="list-disc pl-4 mt-2 mb-2" {...props} />,
+                                                                li: ({node, ...props}) => <li className="mb-1" {...props} />
+                                                            }}
+                                                        >
+                                                            {part}
+                                                        </ReactMarkdown>
+                                                    );
+                                                }
+                                            });
+                                        } else {
+                                            // 纯markdown内容
+                                            return (
+                                                <ReactMarkdown 
+                                                    components={{
+                                                        strong: ({node, ...props}) => <span className="font-bold text-yellow-500" {...props} />,
+                                                        ul: ({node, ...props}) => <ul className="list-disc pl-4 mt-2 mb-2" {...props} />,
+                                                        li: ({node, ...props}) => <li className="mb-1" {...props} />
+                                                    }}
+                                                >
+                                                    {processedText}
+                                                </ReactMarkdown>
+                                            );
+                                        }
+                                    })()}
+                                </div>
                             </div>
                         </div>
                     </div>
