@@ -4,6 +4,8 @@ import Header from './components/Header';
 import Home from './pages/Home';
 import FieldDetail from './pages/FieldDetail';
 import CaseDetail from './pages/CaseDetail';
+import LinksPage from './pages/LinksPage';
+import ImageGenerationPage from './pages/ImageGenerationPage';
 import AiTutor from './components/AiTutor';
 import StarFields from './components/StarFields';
 import RedSoul from './components/RedSoul';
@@ -17,7 +19,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   // Scroll to top on route change
   React.useEffect(() => {
-    window.scrollTo(0, 0);
+    // Disable browser scroll restoration
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    
+    // Scroll to top with a slight delay to ensure it works correctly
+    const timer = setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [location.pathname]);
 
   return (
@@ -75,6 +87,8 @@ const App: React.FC = () => {
           <Route path="/industry" element={<div className="pt-16"><IndustryView /></div>} />
           <Route path="/spirit" element={<div className="pt-16"><SpiritSource /></div>} />
           <Route path="/ai-tutor" element={<div className="pt-16"><AiTutor /></div>} />
+          <Route path="/links" element={<div className="pt-16"><LinksPage /></div>} />
+          <Route path="/image-generation" element={<div className="pt-16"><ImageGenerationPage /></div>} />
         </Routes>
       </Layout>
     </Router>

@@ -75,7 +75,7 @@ const AiTutor: React.FC = () => {
                 <h2 className="text-3xl font-bold text-gray-800">数智定制<br/><span className="text-xl text-blue-600 font-medium">个性化学习助手</span></h2>
             </div>
             <p className="text-gray-600 mb-8 leading-relaxed">
-              依托百度大模型，为你提供专属的学习路径规划。无论是想要了解“两弹一星”背后的技术难点，还是制定新时代卓越工程师的成长路线，星课助手都能为你解答。
+              依托deepseek大模型，为你提供专属的学习路径规划。无论是想要了解“两弹一星”背后的技术难点，还是制定新时代卓越工程师的成长路线，星课助手都能为你解答。
             </p>
             <div className="space-y-4">
                 <div className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">推荐提问</div>
@@ -127,7 +127,7 @@ const AiTutor: React.FC = () => {
                                                     // 处理思考部分
                                                     const thinkContent = part.replace(/<\/?think>/g, '');
                                                     return (
-                                                        <div key={index} className="bg-blue-50 border-l-4 border-blue-300 p-3 mb-4 rounded-r-md text-sm text-gray-600 italic">
+                                                        <div key={index} className="bg-blue-50 border-l-4 border-blue-300 p-2.5 mb-3 rounded-r-md text-xs text-gray-600 italic">
                                                             <span className="font-semibold text-blue-700">思考过程：</span>
                                                             {thinkContent}
                                                         </div>

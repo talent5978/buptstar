@@ -28,11 +28,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </Link>
 
         <nav className="hidden md:flex space-x-6 text-sm font-medium">
-          <Link to="/" className={getLinkClass('/')}>首页</Link>
+          <Link to="/" className={getLinkClass('/')} onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>首页</Link>
           <Link to="/fields/ict" className={getLinkClass('/fields/ict')}>星途领航</Link>
           <Link to="/red-soul" className={getLinkClass('/red-soul')}>红邮铸魂</Link>
           <Link to="/industry" className={getLinkClass('/industry')}>星联企迹</Link>
           <Link to="/spirit" className={getLinkClass('/spirit')}>精神传承</Link>
+          <Link to="/links" className={getLinkClass('/links')}>政通星联</Link>
+          <Link to="/image-generation" className={getLinkClass('/image-generation')}>星图生成</Link>
         </nav>
 
         <div className="flex items-center space-x-4">

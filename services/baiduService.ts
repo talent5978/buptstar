@@ -1,7 +1,7 @@
 export const generateStudyPlan = async (userQuery: string): Promise<string> => {
   try {
     // 通过后端API调用硅基流动服务
-    const response = await fetch('http://10.103.238.216:3001/api/study-plan-silicon', {
+    const response = await fetch('http://10.103.238.216:3001/api/study-plan', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

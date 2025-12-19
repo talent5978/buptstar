@@ -2,7 +2,9 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const { generateStudyPlan } = require('./services/baiduService');
+const siliconFlowService = require('./services/siliconFlowService');
+const kolorsService = require('./services/kolorsService');
+const apiKey = 'sk-rzsqbeobflbmrxgyawtaeznmfbvqxifrylzilvmoafotacrt';
 
 // Load environment variables
 dotenv.config();
@@ -24,7 +26,7 @@ app.post('/api/study-plan', async (req, res) => {
       return res.status(400).json({ error: 'Query parameter is required' });
     }
     
-    const result = await generateStudyPlan(query);
+    const result = await siliconFlowService.generateStudyPlan(query, apiKey);
     res.json({ result });
   } catch (error) {
     console.error('Error in API endpoint:', error);
@@ -32,25 +34,24 @@ app.post('/api/study-plan', async (req, res) => {
   }
 });
 
-// Silicon Flow Test API Route
-app.post('/api/study-plan-silicon', async (req, res) => {
+// Image generation API
+app.post('/api/generate-image', async (req, res) => {
   try {
-    const { query } = req.body;
+    const { prompt } = req.body;
     
-    if (!query) {
-      return res.status(400).json({ error: 'Query parameter is required' });
+    if (!prompt) {
+      return res.status(400).json({ error: 'Image generation prompt is required' });
     }
     
-    // 使用用户提供的API密钥进行测试
-    const apiKey = 'sk-rzsqbeobflbmrxgyawtaeznmfbvqxifrylzilvmoafotacrt';
-    const siliconFlowService = require('./services/siliconFlowService');
-    const result = await siliconFlowService.generateStudyPlan(query, apiKey);
-    res.json({ result });
+    const imageUrl = await kolorsService.generateImage(prompt, apiKey);
+    res.json({ imageUrl });
   } catch (error) {
-    console.error('Error in Silicon Flow API endpoint:', error);
+    console.error('Error in image generation endpoint:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
+
+
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -62,5 +63,6 @@ app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
   console.log('API endpoints:');
   console.log(`- POST /api/study-plan - Generate study plan`);
+  console.log(`- POST /api/generate-image - Generate image using Kolors model`);
   console.log(`- GET /api/health - Health check`);
 });
