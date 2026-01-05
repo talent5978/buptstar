@@ -1,0 +1,9 @@
+tunnel: d0f0a13c-25a6-45b3-9e9b-243c11ce7b38
+credentials-file: /home/zkt/.cloudflared/d0f0a13c-25a6-45b3-9e9b-243c11ce7b38.json
+protocol: http2
+
+ingress:
+  - hostname: buptstar.dpdns.org
+    service: http://localhost:80
+  
+  - service: http_status:404
