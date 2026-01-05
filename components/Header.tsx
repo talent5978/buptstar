@@ -34,7 +34,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           <Link to="/industry" className={getLinkClass('/industry')}>星联企迹</Link>
           <Link to="/spirit" className={getLinkClass('/spirit')}>精神传承</Link>
           <Link to="/links" className={getLinkClass('/links')}>政通星联</Link>
-          <Link to="/image-generation" className={getLinkClass('/image-generation')}>星图生成</Link>
         </nav>
 
         <div className="flex items-center space-x-4">

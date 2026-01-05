@@ -4,10 +4,9 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const siliconFlowService = require('./services/siliconFlowService');
 const kolorsService = require('./services/kolorsService');
-const apiKey = 'sk-rzsqbeobflbmrxgyawtaeznmfbvqxifrylzilvmoafotacrt';
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: __dirname + '/.env' });
 
 // Initialize Express app
 const app = express();
@@ -26,6 +25,9 @@ app.post('/api/study-plan', async (req, res) => {
       return res.status(400).json({ error: 'Query parameter is required' });
     }
     
+    const apiKey = process.env.SILICON_FLOW_API_KEY;
+    console.log('API Key present:', !!apiKey);
+    
     const result = await siliconFlowService.generateStudyPlan(query, apiKey);
     res.json({ result });
   } catch (error) {
@@ -43,6 +45,7 @@ app.post('/api/generate-image', async (req, res) => {
       return res.status(400).json({ error: 'Image generation prompt is required' });
     }
     
+    const apiKey = process.env.SILICON_FLOW_API_KEY;
     const imageUrl = await kolorsService.generateImage(prompt, apiKey);
     res.json({ imageUrl });
   } catch (error) {

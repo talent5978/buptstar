@@ -3,6 +3,7 @@ import { Bot, Send, User, Sparkles } from 'lucide-react';
 import { generateStudyPlan } from '../services/baiduService';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage, ChatSender } from '../types';
+import { Link } from 'react-router-dom';
 
 const AiTutor: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -96,7 +97,9 @@ const AiTutor: React.FC = () => {
             {/* Header */}
             <div className="bg-bupt-blue p-4 flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-white">
-                    <Bot size={20} />
+                    <Link to="/image-generation" className="flex items-center transition-transform hover:scale-110 hover:rotate-12">
+                        <Bot size={20} />
+                    </Link>
                     <span className="font-semibold">星课助手 Online</span>
                 </div>
                 <span className="text-xs text-blue-200">AI Powered</span>
@@ -127,9 +130,12 @@ const AiTutor: React.FC = () => {
                                                     // 处理思考部分
                                                     const thinkContent = part.replace(/<\/?think>/g, '');
                                                     return (
-                                                        <div key={index} className="bg-blue-50 border-l-4 border-blue-300 p-2.5 mb-3 rounded-r-md text-xs text-gray-600 italic">
-                                                            <span className="font-semibold text-blue-700">思考过程：</span>
-                                                            {thinkContent}
+                                                        <div
+                                                          key={index}
+                                                          className="bg-gray-100 border-l-4 border-gray-300 p-2 mb-3 rounded-r-md text-[12px] leading-snug text-gray-600 italic whitespace-pre-wrap"
+                                                        >
+                                                          <span className="font-semibold text-gray-700 mr-1">思考过程：</span>
+                                                          {thinkContent}
                                                         </div>
                                                     );
                                                 } else {

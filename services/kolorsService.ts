@@ -1,7 +1,7 @@
 export const generateImage = async (prompt: string): Promise<string | null> => {
   try {
     // 通过后端API调用Kolors图像生成服务
-    const response = await fetch('http://10.103.238.216:3001/api/generate-image', {
+    const response = await fetch('/api/generate-image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
