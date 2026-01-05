@@ -1,11 +1,49 @@
-import React, { useState } from 'react';
-import { Star } from 'lucide-react';
-import { SPIRIT_DATA } from '../data/spiritData';
+import React, { useState, useEffect } from 'react';
+import { Star, Loader2 } from 'lucide-react';
+import { fetchSpirits } from '../services/dataService';
 import { SpiritCategory, Spirit } from '../types';
 import SpiritDetailModal from './SpiritDetailModal';
 
 const SpiritSource: React.FC = () => {
   const [selectedSpirit, setSelectedSpirit] = useState<Spirit | null>(null);
+  const [spiritData, setSpiritData] = useState<SpiritCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await fetchSpirits();
+        setSpiritData(data);
+      } catch (err: any) {
+        setError(err.message || '加载失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <section id="spirit" className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-star-red" />
+          <span className="ml-2 text-gray-600">加载精神谱系...</span>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section id="spirit" className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4 text-center text-red-500">
+          {error}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <>
@@ -27,7 +65,7 @@ const SpiritSource: React.FC = () => {
             </div>
             
             <div className="divide-y divide-gray-200">
-              {SPIRIT_DATA.map((category: SpiritCategory, catIndex: number) => (
+              {spiritData.map((category: SpiritCategory, catIndex: number) => (
                 <div key={catIndex} className="flex flex-col md:flex-row">
                   <div className="w-full md:w-1/4 bg-red-50/50 p-4 font-bold text-star-red flex items-center justify-center md:justify-start text-center md:text-left border-b md:border-b-0 md:border-r border-gray-200">
                     {category.period}
@@ -52,7 +90,7 @@ const SpiritSource: React.FC = () => {
               ))}
             </div>
              <div className="p-4 bg-gray-50 text-right text-xs text-gray-400">
-              参考资料：中宣部“中国共产党人精神谱系第一批伟大精神”
+              参考资料：中宣部"中国共产党人精神谱系第一批伟大精神"
             </div>
           </div>
         </div>

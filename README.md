@@ -34,8 +34,10 @@
 ### 后端
 - **框架**: Express 5.2.1
 - **语言**: Node.js
+- **数据库**: SQLite (better-sqlite3)
 - **跨域**: CORS 2.8.5
 - **HTTP 客户端**: node-fetch 2.7.0
+- **LLM**: 支持 OpenAI 格式 API（DeepSeek、SiliconFlow 等）
 
 ### 部署
 - **反向代理**: Nginx
@@ -49,22 +51,29 @@
 buptstar-web/
 ├── backend/              # 后端服务
 │   ├── index.js         # 后端入口文件
+│   ├── database.js      # SQLite 数据库模块
+│   ├── initDb.js        # 数据迁移脚本
+│   ├── buptstar.db      # SQLite 数据库文件
+│   ├── services/        # 后端服务
+│   │   ├── llmService.js    # LLM API 服务
+│   │   └── kolorsService.js # 图像生成服务
+│   ├── data/            # 后端数据文件
+│   ├── .env             # 环境变量
 │   └── package.json     # 后端依赖
-├── src/                 # 前端源码
-│   ├── App.tsx         # 主应用组件
-│   ├── components/     # 可复用组件
-│   ├── pages/          # 页面组件
-│   ├── services/       # API 服务
-│   └── data/          # 数据文件
-├── dist/               # 前端构建产物
+├── components/          # React 组件
+├── pages/              # 页面文件
+├── services/           # 前端服务
+│   ├── baiduService.ts # AI 对话服务
+│   ├── kolorsService.ts # 图像生成服务
+│   └── dataService.ts  # 数据 API 服务
+├── data/               # 前端静态数据（已迁移到后端数据库）
 ├── public/             # 静态资源
-├── components/         # 全局组件
-├── pages/             # 页面文件
-├── App.tsx            # 应用入口
-├── index.tsx          # React 入口
-├── vite.config.ts     # Vite 配置
-├── tsconfig.json      # TypeScript 配置
-├── package.json       # 前端依赖
+│   └── assets/         # 图片资源
+├── App.tsx             # 应用入口
+├── index.tsx           # React 入口
+├── vite.config.ts      # Vite 配置
+├── tsconfig.json       # TypeScript 配置
+├── package.json        # 前端依赖
 └── ecosystem.config.cjs # PM2 配置
 ```
 
@@ -92,21 +101,57 @@ buptstar-web/
    ```bash
    cd backend
    npm install
-   cd ..
    ```
 
-4. **启动前端开发服务器**
+4. **配置环境变量**
    ```bash
-   npm run dev
+   # 复制环境变量示例文件
+   cp .env.example .env
+   
+   # 编辑 .env 文件，配置 LLM API
+   # LLM_API_KEY=your-api-key
+   # LLM_API_ENDPOINT=https://api.siliconflow.cn/v1/chat/completions
+   # LLM_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
    ```
-   访问: http://localhost:5173
 
-5. **启动后端服务**
+5. **初始化数据库**
    ```bash
-   cd backend
+   # 运行数据迁移脚本，将静态数据导入 SQLite 数据库
+   node initDb.js
+   ```
+   
+   输出示例：
+   ```
+   开始数据迁移...
+   [1/3] 迁移知识库数据...
+   知识库数据迁移完成，共 6 条记录
+   [2/3] 迁移案例数据...
+   案例数据迁移完成，共 22 条记录
+   [3/3] 迁移精神谱系数据...
+   精神谱系数据迁移完成，共 46 条记录
+   数据迁移全部完成！
+   ```
+
+6. **启动后端服务**
+   ```bash
    node index.js
    ```
    后端运行在: http://localhost:3001
+   
+   后端 API 接口：
+   - `POST /api/study-plan` - AI 学习规划
+   - `POST /api/generate-image` - AI 图像生成
+   - `GET /api/knowledge` - 获取知识库数据
+   - `GET /api/cases` - 获取案例数据
+   - `GET /api/spirits` - 获取精神谱系数据
+   - `GET /api/health` - 健康检查
+
+7. **启动前端开发服务器**（新终端窗口）
+   ```bash
+   cd ..  # 返回项目根目录
+   npm run dev
+   ```
+   访问: http://localhost:5173
 
 ### 生产构建
 

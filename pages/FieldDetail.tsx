@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FIELD_KNOWLEDGE_DB } from '../data/knowledgeData';
+import { fetchKnowledgeById } from '../services/dataService';
 import { SIX_FIELDS } from '../constants';
+import { FieldDetailData } from '../types';
 import ReactMarkdown from 'react-markdown';
-import { Signal, Code, ShieldCheck, Cpu, Zap, Globe, ArrowLeft, BookOpen, BookText, ScrollText, Rocket } from 'lucide-react';
+import { Signal, Code, ShieldCheck, Cpu, Zap, Globe, ArrowLeft, BookOpen, BookText, ScrollText, Rocket, Loader2 } from 'lucide-react';
 
 const iconMap: Record<string, React.ReactNode> = {
   Signal: <Signal size={20} />,
@@ -23,10 +24,38 @@ const sectionIcons: Record<string, React.ReactNode> = {
 const FieldDetail: React.FC = () => {
   const { fieldId } = useParams<{ fieldId: string }>();
   const currentId = fieldId || 'ict';
-  const data = FIELD_KNOWLEDGE_DB[currentId];
+  
+  const [data, setData] = useState<FieldDetailData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!data) {
-    return <div className="pt-24 text-center">领域不存在</div>;
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await fetchKnowledgeById(currentId);
+        setData(result);
+      } catch (err: any) {
+        setError(err.message || '加载失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [currentId]);
+
+  if (loading) {
+    return (
+      <div className="pt-24 flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-bupt-blue" />
+        <span className="ml-2 text-gray-600">加载中...</span>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return <div className="pt-24 text-center text-red-500">{error || '领域不存在'}</div>;
   }
 
   return (

@@ -8,7 +8,7 @@ const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 
 const findRelevantContext = (query) => {
   let context = "";
-  
+
   // Search Fields
   Object.values(FIELD_KNOWLEDGE_DB).forEach(field => {
     if (query.includes(field.name) || field.overview.includes(query)) {
@@ -41,9 +41,9 @@ module.exports.generateStudyPlan = async (userQuery, apiKey) => {
 
     // System instruction
     const systemInstruction = `你是一位优秀的学习规划师，根据用户的需求，结合提供的知识库信息，为用户制定详细的学习计划。回复应该清晰、有条理，并提供具体的学习建议和资源。如果没有提供知识库信息，则根据你的专业知识进行回答。`;
-    
-    const fullQuery = knowledgeContext ? 
-      `${systemInstruction}\n\n知识库信息：${knowledgeContext}\n\n用户问题：${userQuery}` : 
+
+    const fullQuery = knowledgeContext ?
+      `${systemInstruction}\n\n知识库信息：${knowledgeContext}\n\n用户问题：${userQuery}` :
       `${systemInstruction}\n\n用户问题：${userQuery}`;
 
     const requestBody = {
@@ -75,8 +75,18 @@ module.exports.generateStudyPlan = async (userQuery, apiKey) => {
     if (data.error) {
       throw new Error(`API error! message: ${data.error.message}`);
     }
-    
-    return data.choices[0].message.content || '生成学习计划失败。请稍后再试。';
+
+    let content = data.choices[0].message.content || '生成学习计划失败。请稍后再试。';
+
+    // 过滤思维链标签 - DeepSeek-R1模型会返回<think>...</think>思考过程
+    // 使用正则表达式移除思维链内容，支持大小写和不完整标签
+    content = content.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    // 处理可能存在的未闭合标签
+    content = content.replace(/<think>[\s\S]*/gi, '');
+    // 清理多余的空白行
+    content = content.replace(/^\s*\n/gm, '').trim();
+
+    return content;
   } catch (error) {
     console.error("Silicon Flow API Error:", error);
     throw new Error(`生成学习计划失败: ${error.message}`);

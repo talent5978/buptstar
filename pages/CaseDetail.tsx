@@ -1,15 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { CASE_DB } from '../data/redSoulData';
+import { fetchCaseById } from '../services/dataService';
+import { CaseDetailData } from '../types';
 import ReactMarkdown from 'react-markdown';
-import { ArrowLeft, Quote, Tag, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Quote, Tag, ExternalLink, Loader2 } from 'lucide-react';
 
 const CaseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const data = CASE_DB[id || ''];
+  
+  const [data, setData] = useState<CaseDetailData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!data) {
-    return <div className="pt-24 text-center">内容不存在</div>;
+  useEffect(() => {
+    const loadData = async () => {
+      if (!id) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await fetchCaseById(id);
+        setData(result);
+      } catch (err: any) {
+        setError(err.message || '加载失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="pt-24 flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-bupt-blue" />
+        <span className="ml-2 text-gray-600">加载中...</span>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return <div className="pt-24 text-center text-red-500">{error || '内容不存在'}</div>;
   }
 
   return (
@@ -24,7 +54,7 @@ const CaseDetail: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12">
           <div className="container mx-auto">
-            <Link to="/red-soul" className="inline-flex items-center text-gray-300 hover:text-white mb-4 transition-colors">
+            <Link to="/#red-soul" className="inline-flex items-center text-gray-300 hover:text-white mb-4 transition-colors">
                 <ArrowLeft size={16} className="mr-1" /> 返回列表
             </Link>
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{data.title}</h1>
@@ -47,7 +77,7 @@ const CaseDetail: React.FC = () => {
              <div className="bg-red-50 border-l-4 border-star-red p-6 rounded-r-lg mb-8 not-prose">
                 <Quote className="text-star-red opacity-20 mb-2" size={32} />
                 <p className="text-xl font-serif text-gray-800 italic leading-relaxed">
-                    “{data.quote}”
+                    "{data.quote}"
                 </p>
              </div>
 
@@ -90,7 +120,7 @@ const CaseDetail: React.FC = () => {
                 <p className="text-blue-200 text-sm mb-4">
                     作为新时代的工程师，该案例对你的职业发展有何启示？
                 </p>
-                <Link to="/ai-tutor" className="block w-full py-2 bg-white text-bupt-blue text-center rounded font-bold hover:bg-gray-100 transition-colors">
+                <Link to="/#ai-tutor" className="block w-full py-2 bg-white text-bupt-blue text-center rounded font-bold hover:bg-gray-100 transition-colors">
                     与 AI 导师讨论
                 </Link>
             </div>

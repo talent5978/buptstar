@@ -10,7 +10,7 @@ const AiTutor: React.FC = () => {
     {
       id: 'welcome',
       sender: ChatSender.AI,
-      text: '你好！我是“星课助手”。我可以为你制定**定制化工程思政学习计划**，或者解答关于**ICT与航天领域**的红色历史与技术问题。请问有什么可以帮你？',
+      text: '你好！我是星课助手小卓。我可以为你制定**定制化工程思政学习计划**，或者解答关于**ICT与航天领域**的红色历史与技术问题。请问有什么可以帮你？',
       timestamp: new Date()
     }
   ]);
@@ -110,8 +110,8 @@ const AiTutor: React.FC = () => {
                 {messages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.sender === ChatSender.USER ? 'justify-end' : 'justify-start'}`}>
                         <div className={`flex max-w-[85%] ${msg.sender === ChatSender.USER ? 'flex-row-reverse space-x-reverse' : 'flex-row'} space-x-3`}>
-                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.sender === ChatSender.USER ? 'bg-star-red text-white' : 'bg-bupt-blue text-white'}`}>
-                                {msg.sender === ChatSender.USER ? <User size={16} /> : <Bot size={16} />}
+                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden ${msg.sender === ChatSender.USER ? 'bg-star-red text-white' : ''}`}>
+                                {msg.sender === ChatSender.USER ? <User size={16} /> : <img src="/assets/assistant-icon.png" alt="小卓" className="w-full h-full object-cover" />}
                             </div>
                             <div className={`p-4 rounded-2xl shadow-sm text-sm ${msg.sender === ChatSender.USER ? 'bg-star-red text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'}`}>
                                 <div>

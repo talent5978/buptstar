@@ -1,21 +1,59 @@
-import React, { useState, useMemo } from 'react';
-import { CASE_DB } from '../data/redSoulData';
-import { CaseStudy } from '../types';
-import { Bookmark, Award, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { fetchAllCases } from '../services/dataService';
+import { CaseStudy, CaseDetailData } from '../types';
+import { Bookmark, Award, ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const RedSoul: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'cases' | 'models'>('cases');
+  const [caseData, setCaseData] = useState<Record<string, CaseDetailData>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await fetchAllCases();
+        setCaseData(data);
+      } catch (err: any) {
+        setError(err.message || '加载失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const { allCases, allModels } = useMemo(() => {
-    const allItems = Object.values(CASE_DB);
+    const allItems = Object.values(caseData);
     return {
       allCases: allItems.filter(item => item.category === 'red_engineering'),
       allModels: allItems.filter(item => item.category === 'model_engineer'),
     };
-  }, []);
+  }, [caseData]);
 
   const activeData: CaseStudy[] = activeTab === 'cases' ? allCases : allModels;
+
+  if (loading) {
+    return (
+      <section id="red-soul" className="py-20 bg-white">
+        <div className="container mx-auto px-4 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-star-red" />
+          <span className="ml-2 text-gray-600">加载案例数据...</span>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section id="red-soul" className="py-20 bg-white">
+        <div className="container mx-auto px-4 text-center text-red-500">
+          {error}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="red-soul" className="py-20 bg-white">
