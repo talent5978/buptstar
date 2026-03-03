@@ -1,0 +1,107 @@
+{
+  "moral_education": {
+    "module_name": "德育加分",
+    "max_limit": 30,
+    "categories": [
+      {
+        "name": "思想品德表现-集体荣誉",
+        "items": [
+          { "label": "国家级荣誉 (党中央、共青团中央等)", "base_score": 30 },
+          { "label": "省部级荣誉 (北京市十佳班集体等)", "base_score": 20 },
+          { "label": "省部级荣誉 (北京市红色“1+1”等)", "base_score": 20 },
+          { "label": "省部级荣誉 (北京市党政机构奖励等)", "base_score": 16 },
+          { "label": "校级荣誉 (校十佳班集体/样板党支部等)", "base_score": 10 },
+          { "label": "校级荣誉 (校级北京市红色“1+1”突出贡献)", "base_score": 12 }
+        ]
+      },
+      {
+        "name": "思想品德表现-个人荣誉",
+        "items": [
+          { "label": "国家级荣誉 (中国大学生自强之星/年度人物等)", "base_score": 20 },
+          { "label": "省部级荣誉 (北京市三好学生/优秀团员等)", "base_score": 10 },
+          { "label": "校级荣誉 (校优秀党员/优秀研究生等)", "base_score": 8 },
+          { "label": "校级荣誉 (被学校及以上官媒宣传报道)", "base_score": 6 }
+        ]
+      },
+      {
+        "name": "学生工作",
+        "items": [
+          { "label": "院团副、校/院研究生会部长及以上、班长等主要职务", "base_score": 10 },
+          { "label": "校/院研究生会副部长、球队队长等副职及大班委", "base_score": 8 },
+          { "label": "校/院研究生会干事、球队队员、其他小班委", "base_score": 6 },
+          { "label": "宿舍长、宿舍心理负责人", "base_score": 4 }
+        ]
+      }
+    ]
+  },
+  "intellectual_education": {
+    "module_name": "智育加分",
+    "max_limit": null,
+    "categories": [
+      {
+        "name": "学术竞赛",
+        "items": [
+          { "label": "国家级竞赛一等奖", "base_score": 20 },
+          { "label": "国家级竞赛二等奖", "base_score": 12 },
+          { "label": "国家级竞赛三等奖", "base_score": 8 },
+          { "label": "省市级竞赛一等奖", "base_score": 8 },
+          { "label": "省市级竞赛二等奖", "base_score": 6 },
+          { "label": "省市级竞赛三等奖", "base_score": 5 },
+          { "label": "校级竞赛一等奖 (含挑战杯等校级推荐)", "base_score": 5 },
+          { "label": "校级竞赛二等奖", "base_score": 3 },
+          { "label": "校级竞赛三等奖", "base_score": 2 },
+          { "label": "各比赛成功参赛奖", "base_score": 0.5 }
+        ]
+      },
+      {
+        "name": "创新性成果",
+        "items": [
+          { "label": "第一作者出版一级出版社专著/高水平会议最佳论文", "base_score": 40 },
+          { "label": "国家发明专利已转化(20万以上)或获中国专利奖", "base_score": 40 },
+          { "label": "中科院一区 / CCF A类 / 领军期刊", "base_score": 40 },
+          { "label": "中科院二区 / CCF B类 / 第三方认证工程实践成果", "base_score": 20 },
+          { "label": "智库成果(资政建议等) / 国际发明专利正式授权 / 独立标准", "base_score": 20 },
+          { "label": "承担国家重大重点科研项目骨干(排名前3)", "base_score": 15 },
+          { "label": "中科院三区 / CCF C类 / 国家发明专利", "base_score": 10 },
+          { "label": "其他期刊/会议 / 软件著作权", "base_score": 5 },
+          { "label": "国家实用新型专利", "base_score": 3 }
+        ]
+      },
+      {
+        "name": "研创博创项目",
+        "items": [
+          { "label": "研创 S级 / 博创", "base_score": 10 },
+          { "label": "研创 T级", "base_score": 6 },
+          { "label": "研创 A级", "base_score": 4 }
+        ]
+      }
+    ]
+  },
+  "physical_aesthetic_labor": {
+    "module_name": "体美劳育成绩",
+    "categories": [
+      {
+        "name": "日常活动积分",
+        "max_limit_note": "志愿服务上限20分",
+        "items": [
+          { "label": "思想成长/心理健康/文体/劳育活动 (计次)", "base_score": 1 },
+          { "label": "志愿服务 (每2小时)", "base_score": 1 },
+          { "label": "社会实践立项 (团体负责人)", "base_score": 6 },
+          { "label": "社会实践立项 (团队成员/个人负责人)", "base_score": 4 }
+        ]
+      },
+      {
+        "name": "赛事及荣誉加分",
+        "max_limit": 30,
+        "items": [
+          { "label": "国家级体育及文艺比赛 (一二名/一等奖)", "base_score": 30 },
+          { "label": "国家级体育及文艺比赛 (三四名/二等奖)", "base_score": 20 },
+          { "label": "省部级体育及文艺比赛 (一二名/一等奖) / 实践荣誉", "base_score": 20 },
+          { "label": "省部级未获名次但代表学校参赛", "base_score": 4 },
+          { "label": "校级体育及文艺比赛 (一二名/一等奖) / 实践荣誉", "base_score": 10 },
+          { "label": "院级优秀实践团队/个人等荣誉 (最高)", "base_score": 5 }
+        ]
+      }
+    ]
+  }
+}

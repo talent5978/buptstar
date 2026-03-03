@@ -108,10 +108,12 @@ buptstar-web/
    # 复制环境变量示例文件
    cp .env.example .env
    
-   # 编辑 .env 文件，配置 LLM API
+   # 编辑 .env 文件，配置鉴权与 LLM API
+   # JWT_SECRET=replace-with-a-secure-random-secret
    # LLM_API_KEY=your-api-key
    # LLM_API_ENDPOINT=https://api.siliconflow.cn/v1/chat/completions
    # LLM_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+   # 注：LLM_API_KEY 同时用于 AI 学习规划和 AI 图像生成接口
    ```
 
 5. **初始化数据库**
@@ -215,6 +217,29 @@ ingress:
 Nginx 已配置反向代理，将 `/api` 请求转发到后端服务。
 
 ## 🔧 开发指南
+
+### 用户与综测加分模块
+
+- 登录入口：`/login`（需选择身份：`student` / `admin`）
+- 综测上报页：`/comprehensive-score`（仅学生可访问）
+- 管理后台：`/admin`（仅管理员可访问）
+- 默认测试账号：
+  - 学生：`2025010101 / 2025010101`（张三）
+  - 管理员：`admin / bupt2026star`
+
+后端新增接口：
+- `POST /api/auth/login` 登录
+- `GET /api/auth/me` 获取当前用户
+- `GET /api/score/config` 获取综测配置
+- `POST /api/score-reports` 学生提交综测上报（支持图片/PDF）
+- `GET /api/score-reports/mine` 学生查看个人上报
+- `GET /api/admin/users` 管理员查看用户
+- `POST /api/admin/users` 管理员新增用户
+- `POST /api/admin/users/bulk` 管理员批量导入用户
+- `PATCH /api/admin/users/:id/password` 管理员重置密码
+- `PATCH /api/admin/users/:id/profile` 管理员启停用户
+- `GET /api/admin/score-reports` 管理员查看全部上报
+- `PATCH /api/admin/score-reports/:id/review` 管理员审核上报
 
 ### 添加新页面
 
