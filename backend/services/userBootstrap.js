@@ -4,12 +4,6 @@ const database = require('../database');
 
 const DEFAULT_USERS = [
   {
-    username: '2025010101',
-    displayName: '张三',
-    role: 'student',
-    password: '2025010101'
-  },
-  {
     username: 'admin',
     displayName: '管理员',
     role: 'admin',

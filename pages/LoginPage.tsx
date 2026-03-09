@@ -105,11 +105,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          <div className="mt-6 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-            <p>测试账号：</p>
-            <p>学生：2025010101 / 2025010101</p>
-            <p>管理员：admin / bupt2026star</p>
-          </div>
         </div>
       </div>
     </div>
