@@ -4,6 +4,7 @@ import {
   ScoreConfig,
   ScoreDraftResponse,
   ScoreProofFile,
+  ScoreRankingItem,
   ScoreReport,
   ScoreReportListResponse,
   ScoreReviewStudent,
@@ -221,6 +222,15 @@ export const batchReviewReports = async (
   });
   if (!response.ok) throw new Error(await readErrorMessage(response));
   return response.json();
+};
+
+export const fetchAdminScoreRankings = async (token: string): Promise<ScoreRankingItem[]> => {
+  const response = await fetch('/api/admin/score-rankings', {
+    headers: authHeader(token)
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  const data = await response.json();
+  return data.rankings as ScoreRankingItem[];
 };
 
 export const fetchAdminScoreConfig = async (token: string): Promise<Record<string, any>> => {

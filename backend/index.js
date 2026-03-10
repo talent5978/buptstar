@@ -356,6 +356,16 @@ app.get('/api/admin/score-review/students/:userId', authenticate, requireRole('a
   return res.json({ user, reports, summary: scoreService.buildSummary(reports) });
 });
 
+app.get('/api/admin/score-rankings', authenticate, requireRole('admin'), (_req, res) => {
+  try {
+    const rankings = database.listScoreRankings();
+    return res.json({ rankings });
+  } catch (error) {
+    console.error('List score rankings error:', error);
+    return res.status(500).json({ error: '获取积分排名失败' });
+  }
+});
+
 app.patch('/api/admin/score-review/batch', authenticate, requireRole('admin'), (req, res) => {
   try {
     const { reportIds, status, reviewComment } = req.body || {};

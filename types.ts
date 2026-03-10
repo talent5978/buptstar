@@ -210,3 +210,16 @@ export interface ScoreReviewStudent {
   total_count: number;
   latest_updated_at?: string;
 }
+
+export interface ScoreRankingItem {
+  user_id: number;
+  username: string;
+  display_name?: string;
+  total_score: number;
+  moral_score: number;
+  intellectual_score: number;
+  physical_score: number;
+  approved_count: number;
+  pending_count: number;
+  total_count: number;
+}

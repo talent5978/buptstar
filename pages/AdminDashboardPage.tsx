@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { ScoreReport, ScoreReviewStudent, UserListItem, UserRole } from '../types';
+import { ScoreRankingItem, ScoreReport, ScoreReviewStudent, UserListItem, UserRole } from '../types';
 import {
   batchReviewReports,
   createAdminUser,
   fetchAdminScoreConfig,
   fetchAdminEntryStatus,
+  fetchAdminScoreRankings,
   fetchAdminUsers,
   fetchReviewStudentReports,
   fetchReviewStudents,
@@ -20,7 +21,7 @@ interface AdminDashboardPageProps {
   token: string;
 }
 
-type AdminTab = 'users' | 'review' | 'config';
+type AdminTab = 'users' | 'review' | 'ranking' | 'config';
 type ConfigModuleKey = 'moral_education' | 'intellectual_education' | 'physical_aesthetic_labor';
 
 interface EditableConfigItem {
@@ -90,6 +91,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
   const [studentReports, setStudentReports] = useState<ScoreReport[]>([]);
   const [selectedReportIds, setSelectedReportIds] = useState<number[]>([]);
   const [rejectReason, setRejectReason] = useState('');
+  const [rankings, setRankings] = useState<ScoreRankingItem[]>([]);
 
   const [newUsername, setNewUsername] = useState('');
   const [newDisplayName, setNewDisplayName] = useState('');
@@ -122,6 +124,15 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
     }
   };
 
+  const loadRankings = async () => {
+    try {
+      const list = await fetchAdminScoreRankings(token);
+      setRankings(list);
+    } catch (err: any) {
+      setError(err.message || '加载积分排名失败');
+    }
+  };
+
   const loadStudentReports = async (userId: number) => {
     try {
       const detail = await fetchReviewStudentReports(token, userId);
@@ -140,6 +151,9 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
   useEffect(() => {
     if (tab === 'review') {
       loadReviewStudents();
+    }
+    if (tab === 'ranking') {
+      loadRankings();
     }
     if (tab === 'config' && !configLoaded) {
       loadConfig();
@@ -446,6 +460,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
             onClick={async () => {
               await loadBasic();
               if (tab === 'review') await loadReviewStudents();
+              if (tab === 'ranking') await loadRankings();
               if (tab === 'config') await loadConfig();
             }}
             className="inline-flex items-center px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-white"
@@ -482,6 +497,12 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
             className={`px-4 py-2 rounded-lg ${tab === 'review' ? 'bg-bupt-blue text-white' : 'bg-white border border-gray-300 text-gray-700'}`}
           >
             综测审核
+          </button>
+          <button
+            onClick={() => setTab('ranking')}
+            className={`px-4 py-2 rounded-lg ${tab === 'ranking' ? 'bg-bupt-blue text-white' : 'bg-white border border-gray-300 text-gray-700'}`}
+          >
+            积分排名
           </button>
           <button
             onClick={() => setTab('config')}
@@ -725,6 +746,66 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
                   </div>
                 )}
               </div>
+            </div>
+          </section>
+        )}
+
+        {tab === 'ranking' && (
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">动态积分排名</h2>
+                <p className="text-sm text-gray-500 mt-1">按当前未驳回积分实时汇总，包含待审和已通过项目。</p>
+              </div>
+              <button
+                onClick={loadRankings}
+                disabled={saving}
+                className="px-3 py-2 rounded border border-gray-300 text-sm hover:bg-gray-50"
+              >
+                刷新排名
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b">
+                    <th className="py-2 pr-4">排名</th>
+                    <th className="py-2 pr-4">学生</th>
+                    <th className="py-2 pr-4">学号</th>
+                    <th className="py-2 pr-4">总分</th>
+                    <th className="py-2 pr-4">德育</th>
+                    <th className="py-2 pr-4">智育</th>
+                    <th className="py-2 pr-4">体美劳</th>
+                    <th className="py-2 pr-4">已通过</th>
+                    <th className="py-2 pr-4">待审</th>
+                    <th className="py-2">总条数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rankings.map((item, index) => (
+                    <tr key={item.user_id} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-semibold">{index + 1}</td>
+                      <td className="py-2 pr-4">{item.display_name || '-'}</td>
+                      <td className="py-2 pr-4">{item.username}</td>
+                      <td className="py-2 pr-4 font-bold text-bupt-blue">{Number(item.total_score).toFixed(2)}</td>
+                      <td className="py-2 pr-4">{Number(item.moral_score).toFixed(2)}</td>
+                      <td className="py-2 pr-4">{Number(item.intellectual_score).toFixed(2)}</td>
+                      <td className="py-2 pr-4">{Number(item.physical_score).toFixed(2)}</td>
+                      <td className="py-2 pr-4">{item.approved_count}</td>
+                      <td className="py-2 pr-4">{item.pending_count}</td>
+                      <td className="py-2">{item.total_count}</td>
+                    </tr>
+                  ))}
+                  {!rankings.length && (
+                    <tr>
+                      <td colSpan={10} className="py-6 text-center text-gray-500">
+                        暂无可展示的积分排名数据
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
         )}

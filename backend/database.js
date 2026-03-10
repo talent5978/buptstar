@@ -462,6 +462,28 @@ module.exports = {
       .all(searchText, q, q);
   },
 
+  listScoreRankings: () =>
+    db
+      .prepare(
+        `SELECT
+           u.id AS user_id,
+           u.username,
+           u.display_name,
+           COALESCE(SUM(CASE WHEN r.status != 'rejected' THEN r.self_score ELSE 0 END), 0) AS total_score,
+           COALESCE(SUM(CASE WHEN r.status != 'rejected' AND r.module_key = 'moral_education' THEN r.self_score ELSE 0 END), 0) AS moral_score,
+           COALESCE(SUM(CASE WHEN r.status != 'rejected' AND r.module_key = 'intellectual_education' THEN r.self_score ELSE 0 END), 0) AS intellectual_score,
+           COALESCE(SUM(CASE WHEN r.status != 'rejected' AND r.module_key = 'physical_aesthetic_labor' THEN r.self_score ELSE 0 END), 0) AS physical_score,
+           COALESCE(SUM(CASE WHEN r.status = 'approved' THEN 1 ELSE 0 END), 0) AS approved_count,
+           COALESCE(SUM(CASE WHEN r.status = 'pending' THEN 1 ELSE 0 END), 0) AS pending_count,
+           COALESCE(COUNT(r.id), 0) AS total_count
+         FROM users u
+         LEFT JOIN score_reports_v2 r ON r.user_id = u.id
+         WHERE u.role = 'student' AND u.is_active = 1
+         GROUP BY u.id, u.username, u.display_name
+         ORDER BY total_score DESC, approved_count DESC, pending_count DESC, u.username ASC`
+      )
+      .all(),
+
   batchReviewScoreReports: ({ reportIds, status, reviewerId, reviewComment }) => {
     if (!Array.isArray(reportIds) || reportIds.length === 0) {
       return { changes: 0 };
