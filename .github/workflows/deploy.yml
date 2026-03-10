@@ -34,9 +34,8 @@ jobs:
           # 构建前端
           npm run build
           
-          # 重启PM2服务
+          # 重启后端服务
           pm2 restart buptstar-backend
-          pm2 restart buptstar-frontend
           
           # 查看服务状态
           pm2 status
