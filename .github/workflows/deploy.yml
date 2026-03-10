@@ -13,12 +13,12 @@ jobs:
     - name: Deploy to server via SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.SERVER_HOST }}
+        host: ssh.buptstar.dpdns.org
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT || 22 }}
-        timeout: 300s
-        command_timeout: 60s
+        port: 22
+        timeout: 120s
+        command_timeout: 30s
         script: |
           cd /var/www/buptstar-web
           

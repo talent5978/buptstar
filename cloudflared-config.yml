@@ -6,4 +6,7 @@ ingress:
   - hostname: buptstar.dpdns.org
     service: http://localhost:80
   
+  - hostname: ssh.buptstar.dpdns.org
+    service: ssh://localhost:22
+  
   - service: http_status:404
