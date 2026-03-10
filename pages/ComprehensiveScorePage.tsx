@@ -4,6 +4,7 @@ import {
   DraftScoreItem,
   ScoreConfig,
   ScoreConfigCategory,
+  ScoreConfigItem,
   ScoreProofFile,
   ScoreReport,
   ScoreSummary
@@ -46,26 +47,6 @@ const statusClass: Record<string, string> = {
 
 const randomId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-const createEmptyItem = (config: ScoreConfig): DraftScoreItem => {
-  const moduleKey = 'moral_education' as keyof ScoreConfig;
-  const category = config[moduleKey].categories[0];
-  const firstItem = category.items[0];
-
-  return {
-    localId: randomId(),
-    moduleKey,
-    categoryName: category.name,
-    itemLabel: firstItem?.value || firstItem?.label || '',
-    customItemLabel: '',
-    customDescription: '',
-    selfScore: '',
-    firstUnitConfirmed: false,
-    activityName: '',
-    activityDuration: '',
-    proofFiles: []
-  };
-};
-
 const normalizeDraftItemsFromServer = (items: Omit<DraftScoreItem, 'localId'>[]): DraftScoreItem[] =>
   (items || []).map((item) => ({
     ...item,
@@ -85,6 +66,48 @@ const toServerDraftItem = (item: DraftScoreItem): Omit<DraftScoreItem, 'localId'
   activityDuration: item.activityDuration || '',
   proofFiles: item.proofFiles || []
 });
+
+const createDraftItem = (
+  moduleKey: keyof ScoreConfig,
+  categoryName: string,
+  itemLabel: string,
+  overrides?: Partial<DraftScoreItem>
+): DraftScoreItem => ({
+  localId: randomId(),
+  moduleKey,
+  categoryName,
+  itemLabel,
+  customItemLabel: '',
+  customDescription: '',
+  selfScore: '',
+  firstUnitConfirmed: false,
+  activityName: '',
+  activityDuration: '',
+  proofFiles: [],
+  ...overrides
+});
+
+const getCategoryItems = (config: ScoreConfig | null, moduleKey: keyof ScoreConfig, categoryName: string): ScoreConfigItem[] => {
+  if (!config) return [];
+  const category = config[moduleKey].categories.find((item) => item.name === categoryName);
+  return category?.items || [];
+};
+
+const getItemMeta = (config: ScoreConfig | null, item: DraftScoreItem): ScoreConfigItem | undefined =>
+  getCategoryItems(config, item.moduleKey, item.categoryName).find(
+    (candidate) => candidate.value === item.itemLabel || candidate.label === item.itemLabel
+  );
+
+const getModuleItemCount = (draftItems: DraftScoreItem[], moduleKey: keyof ScoreConfig) =>
+  draftItems.filter((item) => item.moduleKey === moduleKey).length;
+
+const getCategoryItemCount = (draftItems: DraftScoreItem[], moduleKey: keyof ScoreConfig, categoryName: string) =>
+  draftItems.filter((item) => item.moduleKey === moduleKey && item.categoryName === categoryName).length;
+
+const getCustomItemCount = (draftItems: DraftScoreItem[], moduleKey: keyof ScoreConfig, categoryName: string) =>
+  draftItems.filter(
+    (item) => item.moduleKey === moduleKey && item.categoryName === categoryName && item.itemLabel === OTHER_VALUE
+  ).length;
 
 const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }) => {
   const [config, setConfig] = useState<ScoreConfig | null>(null);
@@ -115,8 +138,7 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
 
       if (enabled) {
         const draft = await fetchScoreDraft(token);
-        const loaded = normalizeDraftItemsFromServer(draft.items);
-        setDraftItems(loaded.length ? loaded : [createEmptyItem(cfg)]);
+        setDraftItems(normalizeDraftItemsFromServer(draft.items));
       } else {
         setDraftItems([]);
       }
@@ -149,37 +171,48 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
     setDraftItems((prev) => prev.map((item) => (item.localId === localId ? updater(item) : item)));
   };
 
-  const getCategories = (moduleKey: keyof ScoreConfig): ScoreConfigCategory[] => config?.[moduleKey].categories || [];
-
-  const getItems = (moduleKey: keyof ScoreConfig, categoryName: string) => {
-    const category = getCategories(moduleKey).find((cat) => cat.name === categoryName);
-    return category?.items || [];
+  const removeItem = (localId: string) => {
+    setDraftItems((prev) => prev.filter((item) => item.localId !== localId));
   };
 
-  const handleModuleChange = (localId: string, moduleKey: keyof ScoreConfig) => {
-    const categories = getCategories(moduleKey);
-    const category = categories[0];
-    const firstItem = category?.items[0];
+  const isConfiguredItemSelected = (
+    moduleKey: keyof ScoreConfig,
+    categoryName: string,
+    itemLabel: string
+  ) => draftItems.some(
+    (item) =>
+      item.moduleKey === moduleKey &&
+      item.categoryName === categoryName &&
+      item.itemLabel === itemLabel &&
+      item.itemLabel !== OTHER_VALUE
+  );
 
-    updateItem(localId, (item) => ({
-      ...item,
-      moduleKey,
-      categoryName: category?.name || '',
-      itemLabel: firstItem?.value || firstItem?.label || '',
-      firstUnitConfirmed: false
-    }));
+  const toggleConfiguredItem = (moduleKey: keyof ScoreConfig, categoryName: string, itemLabel: string) => {
+    setDraftItems((prev) => {
+      const existing = prev.find(
+        (item) =>
+          item.moduleKey === moduleKey &&
+          item.categoryName === categoryName &&
+          item.itemLabel === itemLabel &&
+          item.itemLabel !== OTHER_VALUE
+      );
+
+      if (existing) {
+        return prev.filter((item) => item.localId !== existing.localId);
+      }
+
+      return [...prev, createDraftItem(moduleKey, categoryName, itemLabel)];
+    });
   };
 
-  const handleCategoryChange = (localId: string, categoryName: string) => {
-    const item = draftItems.find((x) => x.localId === localId);
-    if (!item) return;
-
-    const items = getItems(item.moduleKey, categoryName);
-    updateItem(localId, (it) => ({
-      ...it,
-      categoryName,
-      itemLabel: items[0]?.value || items[0]?.label || ''
-    }));
+  const addCustomItem = (moduleKey: keyof ScoreConfig, categoryName: string) => {
+    setDraftItems((prev) => [
+      ...prev,
+      createDraftItem(moduleKey, categoryName, OTHER_VALUE, {
+        customItemLabel: '',
+        customDescription: ''
+      })
+    ]);
   };
 
   const handleUploadProof = async (localId: string, files: FileList | null) => {
@@ -268,11 +301,11 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
   }
 
   return (
-    <div className="pt-20 min-h-screen bg-gray-50">
+    <div className="pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.08),_transparent_30%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)]">
       <div className="container mx-auto px-4 py-8 space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">综测加分上报</h1>
-          <p className="text-gray-500 mt-2">支持先保存草稿，再一次性提交全部加分项。审核结果和打回原因会在下方记录中显示。</p>
+          <p className="text-gray-500 mt-2">先在树状清单里勾选要填报的加分项，再在下方补充自评得分、说明与材料。</p>
         </div>
 
         {!entryEnabled && (
@@ -296,76 +329,161 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">草稿填报</h2>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">选择加分项</h2>
+              <p className="text-sm text-gray-500 mt-1">按模块与类别展开浏览。勾选即加入待填写列表；自定义项在每个类别底部添加。</p>
+            </div>
+            <div className="px-3 py-1.5 rounded-full bg-slate-100 text-sm text-slate-700">
+              已选择 {draftItems.length} 项
+            </div>
           </div>
 
-          {draftItems.length === 0 && (
-            <div className="text-sm text-gray-500">暂无草稿项，点击“添加加分项”开始填写。</div>
+          <div className="space-y-5">
+            {(Object.entries(config) as Array<[keyof ScoreConfig, ScoreConfig[keyof ScoreConfig]]>).map(([moduleKey, module]) => (
+              <section
+                key={moduleKey}
+                className="rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,0.92))] p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]"
+              >
+                <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+                  <div>
+                    <div className="text-xs font-semibold tracking-[0.24em] uppercase text-slate-400">{moduleKey}</div>
+                    <div className="text-2xl font-bold text-slate-900">{module.module_name}</div>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-full bg-slate-900 text-white text-sm">
+                    {getModuleItemCount(draftItems, moduleKey)} 项待填
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {module.categories.map((category: ScoreConfigCategory) => {
+                    const configuredItems = category.items.filter((item) => !item.is_other);
+                    const customCount = getCustomItemCount(draftItems, moduleKey, category.name);
+                    const categoryCount = getCategoryItemCount(draftItems, moduleKey, category.name);
+
+                    return (
+                      <div key={`${moduleKey}-${category.name}`} className="relative pl-6">
+                        <div className="absolute left-2 top-0 bottom-0 w-px bg-slate-200" />
+                        <div className="absolute left-2 top-8 w-4 h-px bg-slate-300" />
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+                            <div>
+                              <div className="text-lg font-semibold text-slate-900">{category.name}</div>
+                              <div className="text-xs text-slate-500 mt-1">
+                                {category.max_limit ? `本类上限 ${category.max_limit} 分` : '按规则填写'}
+                                {category.max_limit_note ? ` · ${category.max_limit_note}` : ''}
+                                {categoryCount ? ` · 已选 ${categoryCount} 项` : ''}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={!entryEnabled}
+                              onClick={() => addCustomItem(moduleKey, category.name)}
+                              className="inline-flex items-center px-3 py-2 rounded-lg border border-dashed border-slate-300 text-sm text-slate-700 hover:border-bupt-blue hover:text-bupt-blue disabled:opacity-50"
+                            >
+                              <Plus size={15} className="mr-1" /> 添加自定义项
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            {configuredItems.map((item) => {
+                              const checked = isConfiguredItemSelected(moduleKey, category.name, item.value || item.label);
+                              return (
+                                <label
+                                  key={`${moduleKey}-${category.name}-${item.value || item.label}`}
+                                  className={`group flex items-start gap-3 rounded-xl border p-3 transition-colors ${
+                                    checked
+                                      ? 'border-bupt-blue bg-blue-50/80 shadow-[0_10px_24px_rgba(37,99,235,0.08)]'
+                                      : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white'
+                                  } ${entryEnabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={!entryEnabled}
+                                    onChange={() => toggleConfiguredItem(moduleKey, category.name, item.value || item.label)}
+                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-bupt-blue focus:ring-bupt-blue"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-slate-800 leading-6">{item.label}</div>
+                                    <div className="text-xs text-slate-500 mt-1">
+                                      参考分值 {Number(item.base_score).toFixed(2)}
+                                    </div>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t border-dashed border-slate-200">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                              <div>
+                                <div className="text-sm font-medium text-slate-700">自定义项</div>
+                                <div className="text-xs text-slate-500">用于不在清单中的奖项、荣誉或活动。</div>
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {customCount ? `当前已添加 ${customCount} 条自定义项` : '尚未添加'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">已选加分项明细</h2>
+              <p className="text-sm text-gray-500 mt-1">这里只填写你已经勾选或新增的项目。</p>
+            </div>
+          </div>
+
+          {!draftItems.length && (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              还没有选择任何加分项。请先在上方树状清单中勾选，或在分类底部添加自定义项。
+            </div>
           )}
 
           <div className="space-y-4">
             {draftItems.map((item, idx) => {
-              const categories = getCategories(item.moduleKey);
-              const items = getItems(item.moduleKey, item.categoryName);
+              const itemMeta = getItemMeta(config, item);
               const isOther = item.itemLabel === OTHER_VALUE;
               const isIntellectual = item.moduleKey === 'intellectual_education';
               const isDaily =
                 item.moduleKey === 'physical_aesthetic_labor' && item.categoryName === '日常活动积分';
+              const itemTitle = isOther
+                ? item.customItemLabel || `自定义项 #${idx + 1}`
+                : itemMeta?.label || item.itemLabel;
 
               return (
-                <div key={item.localId} className="border border-gray-200 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-800">加分项 #{idx + 1}</h3>
+                <div
+                  key={item.localId}
+                  className="border border-slate-200 rounded-2xl p-4 space-y-3 bg-[linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,0.84))]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        {config[item.moduleKey]?.module_name} / {item.categoryName}
+                      </div>
+                      <h3 className="font-semibold text-slate-900 mt-1">{itemTitle}</h3>
+                      {!isOther && itemMeta && (
+                        <div className="text-xs text-slate-500 mt-1">参考分值 {Number(itemMeta.base_score).toFixed(2)}</div>
+                      )}
+                    </div>
                     <button
-                      disabled={!entryEnabled || draftItems.length === 1}
-                      onClick={() => setDraftItems((prev) => prev.filter((x) => x.localId !== item.localId))}
+                      disabled={!entryEnabled}
+                      onClick={() => removeItem(item.localId)}
                       className="text-red-600 hover:text-red-700 disabled:opacity-40"
                     >
                       <Trash2 size={16} />
                     </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <select
-                      value={item.moduleKey}
-                      disabled={!entryEnabled}
-                      onChange={(e) => handleModuleChange(item.localId, e.target.value as keyof ScoreConfig)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      {Object.entries(config).map(([key, module]) => (
-                        <option key={key} value={key}>
-                          {module.module_name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={item.categoryName}
-                      disabled={!entryEnabled}
-                      onChange={(e) => handleCategoryChange(item.localId, e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      {categories.map((category) => (
-                        <option key={category.name} value={category.name}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={item.itemLabel}
-                      disabled={!entryEnabled}
-                      onChange={(e) => updateItem(item.localId, (it) => ({ ...it, itemLabel: e.target.value }))}
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      {items.map((x) => (
-                        <option key={x.value || x.label} value={x.value || x.label}>
-                          {x.label}
-                        </option>
-                      ))}
-                    </select>
                   </div>
 
                   {isOther && (
@@ -373,14 +491,14 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                       <input
                         value={item.customItemLabel || ''}
                         disabled={!entryEnabled}
-                        onChange={(e) => updateItem(item.localId, (it) => ({ ...it, customItemLabel: e.target.value }))}
+                        onChange={(e) => updateItem(item.localId, (current) => ({ ...current, customItemLabel: e.target.value }))}
                         className="px-3 py-2 border border-gray-300 rounded-lg"
                         placeholder="自定义加分项名称"
                       />
                       <input
                         value={item.customDescription || ''}
                         disabled={!entryEnabled}
-                        onChange={(e) => updateItem(item.localId, (it) => ({ ...it, customDescription: e.target.value }))}
+                        onChange={(e) => updateItem(item.localId, (current) => ({ ...current, customDescription: e.target.value }))}
                         className="px-3 py-2 border border-gray-300 rounded-lg"
                         placeholder="说明（如几作、队员折算规则）"
                       />
@@ -391,7 +509,7 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                     <input
                       value={item.selfScore}
                       disabled={!entryEnabled}
-                      onChange={(e) => updateItem(item.localId, (it) => ({ ...it, selfScore: e.target.value }))}
+                      onChange={(e) => updateItem(item.localId, (current) => ({ ...current, selfScore: e.target.value }))}
                       type="number"
                       min="0"
                       step="0.1"
@@ -404,14 +522,16 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                         <input
                           value={item.activityName || ''}
                           disabled={!entryEnabled}
-                          onChange={(e) => updateItem(item.localId, (it) => ({ ...it, activityName: e.target.value }))}
+                          onChange={(e) => updateItem(item.localId, (current) => ({ ...current, activityName: e.target.value }))}
                           className="px-3 py-2 border border-gray-300 rounded-lg"
                           placeholder="活动名称（可选）"
                         />
                         <input
                           value={item.activityDuration || ''}
                           disabled={!entryEnabled}
-                          onChange={(e) => updateItem(item.localId, (it) => ({ ...it, activityDuration: e.target.value }))}
+                          onChange={(e) =>
+                            updateItem(item.localId, (current) => ({ ...current, activityDuration: e.target.value }))
+                          }
                           className="px-3 py-2 border border-gray-300 rounded-lg"
                           placeholder="时长/次数（可选）"
                         />
@@ -426,7 +546,7 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                         checked={!!item.firstUnitConfirmed}
                         disabled={!entryEnabled}
                         onChange={(e) =>
-                          updateItem(item.localId, (it) => ({ ...it, firstUnitConfirmed: e.target.checked }))
+                          updateItem(item.localId, (current) => ({ ...current, firstUnitConfirmed: e.target.checked }))
                         }
                         className="mr-2"
                       />
@@ -472,16 +592,6 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                 </div>
               );
             })}
-          </div>
-
-          <div>
-            <button
-              disabled={!entryEnabled}
-              onClick={() => setDraftItems((prev) => [...prev, createEmptyItem(config)])}
-              className="inline-flex items-center px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              <Plus size={16} className="mr-1" /> 添加加分项
-            </button>
           </div>
 
           {error && <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</div>}
