@@ -287,6 +287,146 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
     }
   };
 
+  const renderDraftEditor = (item: DraftScoreItem, options?: { showTitle?: boolean; index?: number }) => {
+    const itemMeta = getItemMeta(config, item);
+    const isOther = item.itemLabel === OTHER_VALUE;
+    const isIntellectual = item.moduleKey === 'intellectual_education';
+    const isDaily =
+      item.moduleKey === 'physical_aesthetic_labor' && item.categoryName === '日常活动积分';
+    const itemTitle = isOther
+      ? item.customItemLabel || `自定义项 #${(options?.index || 0) + 1}`
+      : itemMeta?.label || item.itemLabel;
+
+    return (
+      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
+        {options?.showTitle && (
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                {config[item.moduleKey]?.module_name} / {item.categoryName}
+              </div>
+              <h3 className="font-semibold text-slate-900 mt-1">{itemTitle}</h3>
+              {!isOther && itemMeta && (
+                <div className="text-xs text-slate-500 mt-1">参考分值 {Number(itemMeta.base_score).toFixed(2)}</div>
+              )}
+            </div>
+            <button
+              disabled={!entryEnabled}
+              onClick={() => removeItem(item.localId)}
+              className="text-red-600 hover:text-red-700 disabled:opacity-40"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        )}
+
+        {isOther && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input
+              value={item.customItemLabel || ''}
+              disabled={!entryEnabled}
+              onChange={(e) => updateItem(item.localId, (current) => ({ ...current, customItemLabel: e.target.value }))}
+              className="px-3 py-2 border border-gray-300 rounded-lg"
+              placeholder="自定义加分项名称"
+            />
+            <input
+              value={item.customDescription || ''}
+              disabled={!entryEnabled}
+              onChange={(e) => updateItem(item.localId, (current) => ({ ...current, customDescription: e.target.value }))}
+              className="px-3 py-2 border border-gray-300 rounded-lg"
+              placeholder="说明（如几作、队员折算规则）"
+            />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            value={item.selfScore}
+            disabled={!entryEnabled}
+            onChange={(e) => updateItem(item.localId, (current) => ({ ...current, selfScore: e.target.value }))}
+            type="number"
+            min="0"
+            step="0.1"
+            className="px-3 py-2 border border-gray-300 rounded-lg"
+            placeholder="自评加分"
+          />
+
+          {isDaily && (
+            <>
+              <input
+                value={item.activityName || ''}
+                disabled={!entryEnabled}
+                onChange={(e) => updateItem(item.localId, (current) => ({ ...current, activityName: e.target.value }))}
+                className="px-3 py-2 border border-gray-300 rounded-lg"
+                placeholder="活动名称（可选）"
+              />
+              <input
+                value={item.activityDuration || ''}
+                disabled={!entryEnabled}
+                onChange={(e) =>
+                  updateItem(item.localId, (current) => ({ ...current, activityDuration: e.target.value }))
+                }
+                className="px-3 py-2 border border-gray-300 rounded-lg"
+                placeholder="时长/次数（可选）"
+              />
+            </>
+          )}
+        </div>
+
+        {isIntellectual && (
+          <label className="inline-flex items-center text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={!!item.firstUnitConfirmed}
+              disabled={!entryEnabled}
+              onChange={(e) =>
+                updateItem(item.localId, (current) => ({ ...current, firstUnitConfirmed: e.target.checked }))
+              }
+              className="mr-2"
+            />
+            承诺本项成果第一单位为北京邮电大学或企业导师所在单位
+          </label>
+        )}
+
+        <div className="space-y-2">
+          <div className="text-sm text-gray-600">证明材料（可选）</div>
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-bupt-blue text-sm">
+              <UploadCloud size={14} className="mr-1" />
+              {uploadingItemId === item.localId ? '上传中...' : '上传图片/PDF'}
+              <input
+                type="file"
+                multiple
+                accept="image/*,application/pdf"
+                className="hidden"
+                disabled={!entryEnabled || uploadingItemId === item.localId}
+                onChange={(e) => handleUploadProof(item.localId, e.target.files)}
+              />
+            </label>
+            <span className="text-xs text-gray-500">最多 10 个，每个 10MB</span>
+          </div>
+
+          {!!item.proofFiles.length && (
+            <div className="flex flex-wrap gap-2">
+              {item.proofFiles.map((proof: ScoreProofFile) => (
+                <span key={proof.filename} className="inline-flex items-center px-2 py-1 bg-gray-100 rounded text-xs">
+                  <a href={proof.url} target="_blank" rel="noreferrer" className="text-bupt-blue hover:underline mr-2">
+                    {proof.originalName}
+                  </a>
+                  {entryEnabled && (
+                    <button onClick={() => removeProof(item.localId, proof.filename)} className="text-red-500">
+                      x
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="pt-24 min-h-screen flex items-center justify-center">
@@ -333,7 +473,7 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-xl font-bold text-gray-900">选择加分项</h2>
-              <p className="text-sm text-gray-500 mt-1">按模块与类别展开浏览。勾选即加入待填写列表；自定义项在每个类别底部添加。</p>
+              <p className="text-sm text-gray-500 mt-1">按模块与类别展开浏览。勾选后就在当前项目下方直接填写；自定义项在每个类别底部添加。</p>
             </div>
             <div className="px-3 py-1.5 rounded-full bg-slate-100 text-sm text-slate-700">
               已选择 {draftItems.length} 项
@@ -361,6 +501,12 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                     const configuredItems = category.items.filter((item) => !item.is_other);
                     const customCount = getCustomItemCount(draftItems, moduleKey, category.name);
                     const categoryCount = getCategoryItemCount(draftItems, moduleKey, category.name);
+                    const customItems = draftItems.filter(
+                      (item) =>
+                        item.moduleKey === moduleKey &&
+                        item.categoryName === category.name &&
+                        item.itemLabel === OTHER_VALUE
+                    );
 
                     return (
                       <div key={`${moduleKey}-${category.name}`} className="relative pl-6">
@@ -386,32 +532,47 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-2">
                             {configuredItems.map((item) => {
                               const checked = isConfiguredItemSelected(moduleKey, category.name, item.value || item.label);
+                              const selectedItem = draftItems.find(
+                                (draft) =>
+                                  draft.moduleKey === moduleKey &&
+                                  draft.categoryName === category.name &&
+                                  draft.itemLabel === (item.value || item.label) &&
+                                  draft.itemLabel !== OTHER_VALUE
+                              );
                               return (
-                                <label
+                                <div
                                   key={`${moduleKey}-${category.name}-${item.value || item.label}`}
-                                  className={`group flex items-start gap-3 rounded-xl border p-3 transition-colors ${
+                                  className={`rounded-xl border p-3 transition-colors ${
                                     checked
                                       ? 'border-bupt-blue bg-blue-50/80 shadow-[0_10px_24px_rgba(37,99,235,0.08)]'
                                       : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white'
-                                  } ${entryEnabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
+                                  } ${!entryEnabled ? 'opacity-70' : ''}`}
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    disabled={!entryEnabled}
-                                    onChange={() => toggleConfiguredItem(moduleKey, category.name, item.value || item.label)}
-                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-bupt-blue focus:ring-bupt-blue"
-                                  />
-                                  <div className="min-w-0">
-                                    <div className="font-medium text-slate-800 leading-6">{item.label}</div>
-                                    <div className="text-xs text-slate-500 mt-1">
-                                      参考分值 {Number(item.base_score).toFixed(2)}
+                                  <label
+                                    className={`flex items-start gap-3 w-full ${entryEnabled ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      disabled={!entryEnabled}
+                                      onChange={() => toggleConfiguredItem(moduleKey, category.name, item.value || item.label)}
+                                      className="mt-1 h-4 w-4 rounded border-slate-300 text-bupt-blue focus:ring-bupt-blue"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="font-medium text-slate-800 leading-6">{item.label}</div>
+                                        <div className="text-xs text-slate-500 whitespace-nowrap">
+                                          参考分值 {Number(item.base_score).toFixed(2)}
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                </label>
+                                  </label>
+
+                                  {checked && selectedItem && renderDraftEditor(selectedItem)}
+                                </div>
                               );
                             })}
                           </div>
@@ -426,6 +587,16 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                                 {customCount ? `当前已添加 ${customCount} 条自定义项` : '尚未添加'}
                               </div>
                             </div>
+
+                            {!!customItems.length && (
+                              <div className="mt-3 space-y-3">
+                                {customItems.map((customItem, customIndex) => (
+                                  <div key={customItem.localId} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                                    {renderDraftEditor(customItem, { showTitle: true, index: customIndex })}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -438,161 +609,11 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">已选加分项明细</h2>
-              <p className="text-sm text-gray-500 mt-1">这里只填写你已经勾选或新增的项目。</p>
-            </div>
-          </div>
-
           {!draftItems.length && (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
               还没有选择任何加分项。请先在上方树状清单中勾选，或在分类底部添加自定义项。
             </div>
           )}
-
-          <div className="space-y-4">
-            {draftItems.map((item, idx) => {
-              const itemMeta = getItemMeta(config, item);
-              const isOther = item.itemLabel === OTHER_VALUE;
-              const isIntellectual = item.moduleKey === 'intellectual_education';
-              const isDaily =
-                item.moduleKey === 'physical_aesthetic_labor' && item.categoryName === '日常活动积分';
-              const itemTitle = isOther
-                ? item.customItemLabel || `自定义项 #${idx + 1}`
-                : itemMeta?.label || item.itemLabel;
-
-              return (
-                <div
-                  key={item.localId}
-                  className="border border-slate-200 rounded-2xl p-4 space-y-3 bg-[linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,0.84))]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                        {config[item.moduleKey]?.module_name} / {item.categoryName}
-                      </div>
-                      <h3 className="font-semibold text-slate-900 mt-1">{itemTitle}</h3>
-                      {!isOther && itemMeta && (
-                        <div className="text-xs text-slate-500 mt-1">参考分值 {Number(itemMeta.base_score).toFixed(2)}</div>
-                      )}
-                    </div>
-                    <button
-                      disabled={!entryEnabled}
-                      onClick={() => removeItem(item.localId)}
-                      className="text-red-600 hover:text-red-700 disabled:opacity-40"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-
-                  {isOther && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <input
-                        value={item.customItemLabel || ''}
-                        disabled={!entryEnabled}
-                        onChange={(e) => updateItem(item.localId, (current) => ({ ...current, customItemLabel: e.target.value }))}
-                        className="px-3 py-2 border border-gray-300 rounded-lg"
-                        placeholder="自定义加分项名称"
-                      />
-                      <input
-                        value={item.customDescription || ''}
-                        disabled={!entryEnabled}
-                        onChange={(e) => updateItem(item.localId, (current) => ({ ...current, customDescription: e.target.value }))}
-                        className="px-3 py-2 border border-gray-300 rounded-lg"
-                        placeholder="说明（如几作、队员折算规则）"
-                      />
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <input
-                      value={item.selfScore}
-                      disabled={!entryEnabled}
-                      onChange={(e) => updateItem(item.localId, (current) => ({ ...current, selfScore: e.target.value }))}
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="自评加分"
-                    />
-
-                    {isDaily && (
-                      <>
-                        <input
-                          value={item.activityName || ''}
-                          disabled={!entryEnabled}
-                          onChange={(e) => updateItem(item.localId, (current) => ({ ...current, activityName: e.target.value }))}
-                          className="px-3 py-2 border border-gray-300 rounded-lg"
-                          placeholder="活动名称（可选）"
-                        />
-                        <input
-                          value={item.activityDuration || ''}
-                          disabled={!entryEnabled}
-                          onChange={(e) =>
-                            updateItem(item.localId, (current) => ({ ...current, activityDuration: e.target.value }))
-                          }
-                          className="px-3 py-2 border border-gray-300 rounded-lg"
-                          placeholder="时长/次数（可选）"
-                        />
-                      </>
-                    )}
-                  </div>
-
-                  {isIntellectual && (
-                    <label className="inline-flex items-center text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={!!item.firstUnitConfirmed}
-                        disabled={!entryEnabled}
-                        onChange={(e) =>
-                          updateItem(item.localId, (current) => ({ ...current, firstUnitConfirmed: e.target.checked }))
-                        }
-                        className="mr-2"
-                      />
-                      承诺本项成果第一单位为北京邮电大学或企业导师所在单位
-                    </label>
-                  )}
-
-                  <div className="space-y-2">
-                    <div className="text-sm text-gray-600">证明材料（可选）</div>
-                    <div className="flex items-center gap-3">
-                      <label className="inline-flex items-center px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-bupt-blue text-sm">
-                        <UploadCloud size={14} className="mr-1" />
-                        {uploadingItemId === item.localId ? '上传中...' : '上传图片/PDF'}
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*,application/pdf"
-                          className="hidden"
-                          disabled={!entryEnabled || uploadingItemId === item.localId}
-                          onChange={(e) => handleUploadProof(item.localId, e.target.files)}
-                        />
-                      </label>
-                      <span className="text-xs text-gray-500">最多 10 个，每个 10MB</span>
-                    </div>
-
-                    {!!item.proofFiles.length && (
-                      <div className="flex flex-wrap gap-2">
-                        {item.proofFiles.map((proof: ScoreProofFile) => (
-                          <span key={proof.filename} className="inline-flex items-center px-2 py-1 bg-gray-100 rounded text-xs">
-                            <a href={proof.url} target="_blank" rel="noreferrer" className="text-bupt-blue hover:underline mr-2">
-                              {proof.originalName}
-                            </a>
-                            {entryEnabled && (
-                              <button onClick={() => removeProof(item.localId, proof.filename)} className="text-red-500">
-                                x
-                              </button>
-                            )}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
           {error && <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</div>}
           {success && <div className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{success}</div>}
