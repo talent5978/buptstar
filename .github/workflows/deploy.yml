@@ -1,0 +1,53 @@
+name: Auto Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to server via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        timeout: 300s
+        command_timeout: 60s
+        script: |
+          cd /var/www/buptstar-web
+          
+          # 拉取最新代码
+          git pull origin main
+          
+          # 更新前端依赖
+          npm install
+          
+          # 更新后端依赖
+          cd backend && npm install && cd ..
+          
+          # 构建前端
+          npm run build
+          
+          # 重启PM2服务
+          pm2 restart buptstar-backend
+          pm2 restart buptstar-frontend
+          
+          # 查看服务状态
+          pm2 status
+          
+          echo "部署完成！"
+          
+    - name: Notify deployment result
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "✅ 部署成功！"
+        else
+          echo "❌ 部署失败！"
+        fi
