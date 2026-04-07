@@ -27,3 +27,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Runtime artifacts
+.runtime/
+backend/*.db-shm
+backend/*.db-wal
