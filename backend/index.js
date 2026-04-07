@@ -10,6 +10,7 @@ const llmService = require('./services/llmService');
 const kolorsService = require('./services/kolorsService');
 const database = require('./database');
 const scoreService = require('./services/scoreService');
+const { buildAdminExportCsv } = require('./services/adminExportService');
 const { ensureDefaultUsers } = require('./services/userBootstrap');
 const { signToken, authenticate, requireRole, buildSafeUser } = require('./middleware/auth');
 
@@ -363,6 +364,21 @@ app.get('/api/admin/score-rankings', authenticate, requireRole('admin'), (_req, 
   } catch (error) {
     console.error('List score rankings error:', error);
     return res.status(500).json({ error: '获取积分排名失败' });
+  }
+});
+
+app.get('/api/admin/score-export', authenticate, requireRole('admin'), (_req, res) => {
+  try {
+    const csv = buildAdminExportCsv(database);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const filename = `buptstar-score-export-${stamp}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    return res.send(`\uFEFF${csv}`);
+  } catch (error) {
+    console.error('Export score data error:', error);
+    return res.status(500).json({ error: '导出综测数据失败' });
   }
 });
 

@@ -4,6 +4,7 @@ import { ScoreRankingItem, ScoreReport, ScoreReviewStudent, UserListItem, UserRo
 import {
   batchReviewReports,
   createAdminUser,
+  exportAdminScoreData,
   fetchAdminScoreConfig,
   fetchAdminEntryStatus,
   fetchAdminScoreRankings,
@@ -77,6 +78,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
   const [tab, setTab] = useState<AdminTab>('users');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -439,6 +441,28 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
     }
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const { blob, filename } = await exportAdminScoreData(token);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setSuccess('综测数据已开始下载，可用于后续样本分析和学生画像整理');
+    } catch (err: any) {
+      setError(err.message || '导出综测数据失败');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="pt-24 min-h-screen flex items-center justify-center">
@@ -518,13 +542,25 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
         {tab === 'users' && (
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <h2 className="text-xl font-bold text-gray-900">用户管理</h2>
-              <input
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                placeholder="按姓名或学号搜索"
-                className="px-3 py-2 border border-gray-300 rounded-lg min-w-[260px]"
-              />
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">用户管理</h2>
+                <p className="text-sm text-gray-500 mt-1">支持搜索、批量导入，以及导出全量综测数据用于后续分析。</p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <input
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="按姓名或学号搜索"
+                  className="px-3 py-2 border border-gray-300 rounded-lg min-w-[260px]"
+                />
+                <button
+                  onClick={handleExport}
+                  disabled={saving || exporting}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {exporting ? '导出中...' : '导出综测数据'}
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-5 gap-3">

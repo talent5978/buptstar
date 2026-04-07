@@ -341,6 +341,28 @@ module.exports = {
       .run(userId, JSON.stringify(items || []), ts);
   },
   clearScoreDraftByUser: (userId) => db.prepare('DELETE FROM score_drafts WHERE user_id = ?').run(userId),
+  listScoreDraftsAll: () => {
+    const rows = db
+      .prepare(
+        `SELECT
+           d.user_id,
+           d.items_json,
+           d.updated_at,
+           u.username,
+           u.display_name,
+           u.role,
+           u.is_active
+         FROM score_drafts d
+         JOIN users u ON u.id = d.user_id
+         ORDER BY datetime(d.updated_at) DESC, d.user_id DESC`
+      )
+      .all();
+
+    return rows.map((row) => ({
+      ...row,
+      items: safeParseJsonArray(row.items_json)
+    }));
+  },
 
   // V2综测上报
   createScoreReportsBatch: ({ userId, submissionId, items }) => {

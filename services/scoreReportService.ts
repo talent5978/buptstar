@@ -233,6 +233,30 @@ export const fetchAdminScoreRankings = async (token: string): Promise<ScoreRanki
   return data.rankings as ScoreRankingItem[];
 };
 
+const parseFilenameFromDisposition = (disposition: string | null): string => {
+  if (!disposition) return 'buptstar-score-export.csv';
+
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const plainMatch = disposition.match(/filename="?([^"]+)"?/i);
+  return plainMatch?.[1] || 'buptstar-score-export.csv';
+};
+
+export const exportAdminScoreData = async (token: string): Promise<{ blob: Blob; filename: string }> => {
+  const response = await fetch('/api/admin/score-export', {
+    headers: authHeader(token)
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+
+  return {
+    blob: await response.blob(),
+    filename: parseFilenameFromDisposition(response.headers.get('Content-Disposition'))
+  };
+};
+
 export const fetchAdminScoreConfig = async (token: string): Promise<Record<string, any>> => {
   const response = await fetch('/api/admin/score-config', { headers: authHeader(token) });
   if (!response.ok) throw new Error(await readErrorMessage(response));
