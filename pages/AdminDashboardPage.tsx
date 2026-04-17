@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { ScoreRankingItem, ScoreReport, ScoreReviewStudent, UserListItem, UserRole } from '../types';
+import { ScoreCalculationMode, ScoreRankingItem, ScoreReport, ScoreReviewStudent, UserListItem, UserRole } from '../types';
 import {
   batchReviewReports,
   createAdminUser,
@@ -28,6 +28,7 @@ type ConfigModuleKey = 'moral_education' | 'intellectual_education' | 'physical_
 interface EditableConfigItem {
   label: string;
   base_score: number | null;
+  scoring_mode?: ScoreCalculationMode;
 }
 
 interface EditableConfigCategory {
@@ -64,6 +65,13 @@ const moduleTextMap: Record<string, string> = {
 };
 
 const moduleKeyOrder: ConfigModuleKey[] = ['moral_education', 'intellectual_education', 'physical_aesthetic_labor'];
+const scoringModeOptions: Array<{ value: ScoreCalculationMode; label: string; hint: string }> = [
+  { value: 'manual', label: '手动填分', hint: '学生自行填写最终分值，系统只做上限校验。' },
+  { value: 'competition_team', label: '竞赛团队自动算分', hint: '按个人/团体、队长/队员、项目人数自动计算。' },
+  { value: 'competition_participation', label: '成功参赛奖固定计分', hint: '固定按参考分计入，并校验累计上限。' },
+  { value: 'student_work_dual_role', label: '学生工作双岗位', hint: '按“最高项 + 第二项 × 0.4”自动计算。' },
+  { value: 'paper_authorship', label: '论文作者顺位', hint: '按一作/二作/三作等作者顺位自动计算。' }
+];
 
 const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -319,6 +327,17 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
   const setItemBaseScore = (moduleKey: ConfigModuleKey, categoryIndex: number, itemIndex: number, value: string) => {
     updateConfig((draft) => {
       draft[moduleKey].categories[categoryIndex].items[itemIndex].base_score = toNullableNumber(value);
+    });
+  };
+
+  const setItemScoringMode = (
+    moduleKey: ConfigModuleKey,
+    categoryIndex: number,
+    itemIndex: number,
+    value: ScoreCalculationMode
+  ) => {
+    updateConfig((draft) => {
+      draft[moduleKey].categories[categoryIndex].items[itemIndex].scoring_mode = value;
     });
   };
 
@@ -773,7 +792,12 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
                                   {statusTextMap[report.status] || report.status}
                                 </span>
                               </td>
-                              <td className="py-2">{report.review_comment || '-'}</td>
+                              <td className="py-2">
+                                {report.calculation_result?.summary && (
+                                  <div className="text-xs text-blue-700 mb-1">计算：{report.calculation_result.summary}</div>
+                                )}
+                                {report.review_comment || '-'}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -967,7 +991,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
 
                             <div className="space-y-2">
                               {(category.items || []).map((item, itemIndex) => (
-                                <div key={`${moduleKey}-${categoryIndex}-${itemIndex}`} className="grid grid-cols-1 md:grid-cols-[1fr_180px_90px] gap-2">
+                                <div key={`${moduleKey}-${categoryIndex}-${itemIndex}`} className="grid grid-cols-1 md:grid-cols-[1fr_180px_220px_90px] gap-2">
                                   <input
                                     value={item.label || ''}
                                     onChange={(e) => setItemLabel(moduleKey, categoryIndex, itemIndex, e.target.value)}
@@ -982,6 +1006,29 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ token }) => {
                                     className="px-3 py-2 border border-gray-300 rounded-lg"
                                     placeholder="参考分值"
                                   />
+                                  <div className="space-y-1">
+                                    <select
+                                      value={item.scoring_mode || 'manual'}
+                                      onChange={(e) =>
+                                        setItemScoringMode(
+                                          moduleKey,
+                                          categoryIndex,
+                                          itemIndex,
+                                          e.target.value as ScoreCalculationMode
+                                        )
+                                      }
+                                      className="px-3 py-2 border border-gray-300 rounded-lg w-full"
+                                    >
+                                      {scoringModeOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <div className="text-[11px] text-gray-500">
+                                      {scoringModeOptions.find((option) => option.value === (item.scoring_mode || 'manual'))?.hint}
+                                    </div>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => removeItem(moduleKey, categoryIndex, itemIndex)}

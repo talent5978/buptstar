@@ -19,6 +19,24 @@ const safeParseJsonArray = (value) => {
   }
 };
 
+const safeParseJsonObject = (value) => {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const ensureColumn = (tableName, columnName, definition) => {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const exists = columns.some((column) => column.name === columnName);
+  if (!exists) {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  }
+};
+
 const initTables = () => {
   db.exec(`
     CREATE TABLE IF NOT EXISTS knowledge (
@@ -149,6 +167,10 @@ const initTables = () => {
   db.exec('CREATE INDEX IF NOT EXISTS idx_score_reports_v2_status ON score_reports_v2(status)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_score_reports_v2_submission ON score_reports_v2(submission_id)');
 
+  ensureColumn('score_reports_v2', 'calculation_mode', 'TEXT');
+  ensureColumn('score_reports_v2', 'calculation_payload', 'TEXT');
+  ensureColumn('score_reports_v2', 'calculation_result', 'TEXT');
+
   const exists = db.prepare('SELECT key FROM system_settings WHERE key = ?').get('score_entry_enabled');
   if (!exists) {
     db.prepare('INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, ?)').run('score_entry_enabled', '1', now());
@@ -163,7 +185,9 @@ const mapScoreReportRow = (row) => {
     ...row,
     is_other: !!row.is_other,
     first_unit_confirmed: !!row.first_unit_confirmed,
-    proofFiles: safeParseJsonArray(row.proof_files)
+    proofFiles: safeParseJsonArray(row.proof_files),
+    calculation_payload: safeParseJsonObject(row.calculation_payload),
+    calculation_result: safeParseJsonObject(row.calculation_result)
   };
 };
 
@@ -373,8 +397,9 @@ module.exports = {
         custom_item_label, custom_description, is_other,
         base_score, self_score, first_unit_confirmed,
         activity_name, activity_duration, proof_files,
+        calculation_mode, calculation_payload, calculation_result,
         status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
     `);
 
     const tx = db.transaction((payloadItems) => {
@@ -395,6 +420,9 @@ module.exports = {
           item.activityName || null,
           item.activityDuration || null,
           JSON.stringify(item.proofFiles || []),
+          item.calculationMode || null,
+          item.calculationPayload ? JSON.stringify(item.calculationPayload) : null,
+          item.calculationResult ? JSON.stringify(item.calculationResult) : null,
           ts,
           ts
         );
@@ -586,6 +614,21 @@ module.exports = {
            AND status IN (${placeholders})`
       )
       .get(userId, moduleKey, like, like, like, ...statuses);
+    return Number(row?.total || 0);
+  },
+
+  sumSelfScoreByCalculationModeV2: (userId, calculationMode, statuses = ACTIVE_REVIEW_STATUSES) => {
+    if (!statuses.length) return 0;
+    const placeholders = getScoreStatusPlaceholders(statuses);
+    const row = db
+      .prepare(
+        `SELECT COALESCE(SUM(self_score), 0) AS total
+         FROM score_reports_v2
+         WHERE user_id = ?
+           AND calculation_mode = ?
+           AND status IN (${placeholders})`
+      )
+      .get(userId, calculationMode, ...statuses);
     return Number(row?.total || 0);
   }
 };

@@ -1,9 +1,21 @@
 const path = require('path');
 const fs = require('fs');
+const {
+  MANUAL_SCORING_MODE,
+  COMPETITION_PARTICIPATION_SCORING_MODE,
+  calculateItemScore
+} = require('./scoreCalculationService');
 
 const configPath = path.join(__dirname, '..', 'data', 'comprehensiveScoreConfig.json');
 
 const OTHER_ITEM_VALUE = '__other__';
+const VALID_SCORING_MODES = new Set([
+  MANUAL_SCORING_MODE,
+  'competition_team',
+  COMPETITION_PARTICIPATION_SCORING_MODE,
+  'student_work_dual_role',
+  'paper_authorship'
+]);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -62,6 +74,13 @@ const assertValidRawConfig = (config) => {
             message: `模块 ${moduleKey} 类别 ${category.name} 的加分项 ${item.label} base_score 必须是数字或 null`
           };
         }
+        if (item.scoring_mode !== undefined && !VALID_SCORING_MODES.has(item.scoring_mode)) {
+          throw {
+            code: 'CONFIG_INVALID',
+            status: 400,
+            message: `模块 ${moduleKey} 类别 ${category.name} 的加分项 ${item.label} scoring_mode 非法`
+          };
+        }
       });
     });
   });
@@ -81,13 +100,15 @@ const buildConfigWithOther = (raw) => {
       category.items = (category.items || []).map((item) => ({
         ...item,
         value: item.label,
-        is_other: false
+        is_other: false,
+        scoring_mode: item.scoring_mode || MANUAL_SCORING_MODE
       }));
       category.items.push({
         label: '其它（自定义）',
         value: OTHER_ITEM_VALUE,
         base_score: 0,
-        is_other: true
+        is_other: true,
+        scoring_mode: MANUAL_SCORING_MODE
       });
     });
   });
@@ -133,7 +154,11 @@ const sanitizeDraftItems = (items) => {
     firstUnitConfirmed: !!item.firstUnitConfirmed,
     activityName: String(item.activityName || '').trim(),
     activityDuration: String(item.activityDuration || '').trim(),
-    proofFiles: sanitizeProofFiles(item.proofFiles)
+    proofFiles: sanitizeProofFiles(item.proofFiles),
+    calculationInput:
+      item.calculationInput && typeof item.calculationInput === 'object' && !Array.isArray(item.calculationInput)
+        ? clone(item.calculationInput)
+        : {}
   }));
 };
 
@@ -173,11 +198,6 @@ const validateSubmitItems = ({ items, userId, database }) => {
       throw { code: 'VALIDATION_ERROR', status: 400, message: `第 ${index + 1} 条：加分项无效` };
     }
 
-    const selfScore = normalizeNumber(item.selfScore);
-    if (selfScore === null || selfScore <= 0) {
-      throw { code: 'VALIDATION_ERROR', status: 400, message: `第 ${index + 1} 条：自评加分必须大于0` };
-    }
-
     const isOther = itemMeta.is_other || itemLabel === OTHER_ITEM_VALUE;
     if (isOther && !item.customItemLabel) {
       throw { code: 'VALIDATION_ERROR', status: 400, message: `第 ${index + 1} 条：其它项必须填写自定义加分项` };
@@ -192,6 +212,38 @@ const validateSubmitItems = ({ items, userId, database }) => {
       throw { code: 'VALIDATION_ERROR', status: 400, message: `第 ${index + 1} 条：智育加分需确认第一单位承诺` };
     }
 
+    let selfScore = normalizeNumber(item.selfScore);
+    let calculationMode = itemMeta.scoring_mode || MANUAL_SCORING_MODE;
+    let calculationPayload = null;
+    let calculationResult = null;
+
+    if (!isOther && calculationMode !== MANUAL_SCORING_MODE) {
+      try {
+        const computed = calculateItemScore({
+          itemMeta,
+          categoryItems: category.items,
+          calculationInput: item.calculationInput || {}
+        });
+        selfScore = computed.finalScore;
+        calculationPayload = clone(item.calculationInput || {});
+        calculationResult = {
+          summary: computed.summary,
+          detail: computed.detail || {},
+          finalScore: computed.finalScore
+        };
+      } catch (error) {
+        throw {
+          code: 'VALIDATION_ERROR',
+          status: 400,
+          message: `第 ${index + 1} 条：${error.message || '自动算分失败'}`
+        };
+      }
+    }
+
+    if (selfScore === null || selfScore <= 0) {
+      throw { code: 'VALIDATION_ERROR', status: 400, message: `第 ${index + 1} 条：加分结果必须大于0` };
+    }
+
     return {
       userId,
       moduleKey,
@@ -202,6 +254,9 @@ const validateSubmitItems = ({ items, userId, database }) => {
       isOther,
       baseScore: isOther ? null : Number(itemMeta.base_score),
       selfScore,
+      calculationMode: isOther ? MANUAL_SCORING_MODE : calculationMode,
+      calculationPayload,
+      calculationResult,
       firstUnitConfirmed,
       activityName: item.activityName,
       activityDuration: item.activityDuration,
@@ -214,7 +269,8 @@ const validateSubmitItems = ({ items, userId, database }) => {
     moral: 0,
     palHonor: 0,
     volunteer: 0,
-    socialPracticeCount: 0
+    socialPracticeCount: 0,
+    competitionParticipation: 0
   };
 
   prepared.forEach((item, index) => {
@@ -227,6 +283,19 @@ const validateSubmitItems = ({ items, userId, database }) => {
           status: 400,
           message: `第 ${index + 1} 条触发德育上限（30分）`,
           detail: { current, incomingAccumulated: added.moral, limit: 30 }
+        };
+      }
+    }
+
+    if (item.calculationMode === COMPETITION_PARTICIPATION_SCORING_MODE) {
+      added.competitionParticipation += item.selfScore;
+      const current = database.sumSelfScoreByCalculationModeV2(userId, COMPETITION_PARTICIPATION_SCORING_MODE);
+      if (current + added.competitionParticipation > 2) {
+        throw {
+          code: 'LIMIT_EXCEEDED',
+          status: 400,
+          message: `第 ${index + 1} 条触发成功参赛奖上限（2分）`,
+          detail: { current, incomingAccumulated: added.competitionParticipation, limit: 2 }
         };
       }
     }

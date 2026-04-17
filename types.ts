@@ -88,11 +88,40 @@ export interface AuthPayload {
   user: AuthUser;
 }
 
+export type ScoreCalculationMode =
+  | 'manual'
+  | 'competition_team'
+  | 'competition_participation'
+  | 'student_work_dual_role'
+  | 'paper_authorship';
+
+export type PaperAuthorshipRole =
+  | 'first_author'
+  | 'advisor_first_student_second'
+  | 'second_author'
+  | 'third_author'
+  | 'fourth_or_later';
+
+export interface ScoreCalculationInput {
+  isTeamProject?: boolean;
+  isLeader?: boolean;
+  teamSize?: number | string;
+  secondaryItemLabel?: string;
+  authorshipRole?: PaperAuthorshipRole;
+}
+
+export interface ScoreCalculationResult {
+  summary?: string;
+  detail?: Record<string, unknown> | null;
+  finalScore?: number | null;
+}
+
 export interface ScoreConfigItem {
   label: string;
   value: string;
   base_score: number;
   is_other?: boolean;
+  scoring_mode?: ScoreCalculationMode;
 }
 
 export interface ScoreConfigCategory {
@@ -136,6 +165,8 @@ export interface DraftScoreItem {
   activityName?: string;
   activityDuration?: string;
   proofFiles: ScoreProofFile[];
+  calculationInput?: ScoreCalculationInput;
+  calculationResult?: ScoreCalculationResult | null;
 }
 
 export interface ScoreReport {
@@ -155,6 +186,9 @@ export interface ScoreReport {
   first_unit_confirmed: boolean;
   activity_name?: string;
   activity_duration?: string;
+  calculation_mode?: ScoreCalculationMode | null;
+  calculation_payload?: ScoreCalculationInput | null;
+  calculation_result?: ScoreCalculationResult | null;
   status: ReviewStatus;
   review_comment?: string;
   reviewer_name?: string;

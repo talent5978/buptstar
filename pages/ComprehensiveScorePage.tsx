@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Save, Send, Trash2, UploadCloud, Loader2 } from 'lucide-react';
 import {
   DraftScoreItem,
+  PaperAuthorshipRole,
   ScoreConfig,
   ScoreConfigCategory,
   ScoreConfigItem,
+  ScoreCalculationInput,
   ScoreProofFile,
   ScoreReport,
   ScoreSummary
@@ -17,6 +19,18 @@ import {
   submitScoreDraft,
   uploadScoreProofs
 } from '../services/scoreReportService';
+import {
+  buildDefaultCalculationInput,
+  calculateDraftItemPreview,
+  COMPETITION_PARTICIPATION_SCORING_MODE,
+  COMPETITION_TEAM_SCORING_MODE,
+  getRuleHint,
+  getScoringMode,
+  MANUAL_SCORING_MODE,
+  paperAuthorshipOptions,
+  PAPER_AUTHORSHIP_SCORING_MODE,
+  STUDENT_WORK_DUAL_ROLE_SCORING_MODE
+} from '../services/scoreCalculation';
 
 interface ComprehensiveScorePageProps {
   token: string;
@@ -51,7 +65,9 @@ const normalizeDraftItemsFromServer = (items: Omit<DraftScoreItem, 'localId'>[])
   (items || []).map((item) => ({
     ...item,
     localId: randomId(),
-    selfScore: String(item.selfScore ?? '')
+    selfScore: String(item.selfScore ?? ''),
+    calculationInput: item.calculationInput || undefined,
+    calculationResult: item.calculationResult || null
   }));
 
 const toServerDraftItem = (item: DraftScoreItem): Omit<DraftScoreItem, 'localId'> => ({
@@ -64,13 +80,15 @@ const toServerDraftItem = (item: DraftScoreItem): Omit<DraftScoreItem, 'localId'
   firstUnitConfirmed: !!item.firstUnitConfirmed,
   activityName: item.activityName || '',
   activityDuration: item.activityDuration || '',
-  proofFiles: item.proofFiles || []
+  proofFiles: item.proofFiles || [],
+  calculationInput: item.calculationInput || undefined
 });
 
 const createDraftItem = (
   moduleKey: keyof ScoreConfig,
   categoryName: string,
   itemLabel: string,
+  itemMeta?: ScoreConfigItem,
   overrides?: Partial<DraftScoreItem>
 ): DraftScoreItem => ({
   localId: randomId(),
@@ -84,6 +102,8 @@ const createDraftItem = (
   activityName: '',
   activityDuration: '',
   proofFiles: [],
+  calculationInput: buildDefaultCalculationInput(itemMeta),
+  calculationResult: null,
   ...overrides
 });
 
@@ -97,6 +117,12 @@ const getItemMeta = (config: ScoreConfig | null, item: DraftScoreItem): ScoreCon
   getCategoryItems(config, item.moduleKey, item.categoryName).find(
     (candidate) => candidate.value === item.itemLabel || candidate.label === item.itemLabel
   );
+
+const getCategoryMeta = (
+  config: ScoreConfig | null,
+  moduleKey: keyof ScoreConfig,
+  categoryName: string
+): ScoreConfigCategory | undefined => config?.[moduleKey].categories.find((item) => item.name === categoryName);
 
 const getModuleItemCount = (draftItems: DraftScoreItem[], moduleKey: keyof ScoreConfig) =>
   draftItems.filter((item) => item.moduleKey === moduleKey).length;
@@ -171,6 +197,22 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
     setDraftItems((prev) => prev.map((item) => (item.localId === localId ? updater(item) : item)));
   };
 
+  const updateCalculationInput = (
+    localId: string,
+    updater: (current: ScoreCalculationInput | undefined) => ScoreCalculationInput | undefined
+  ) => {
+    setDraftItems((prev) =>
+      prev.map((item) => {
+        if (item.localId !== localId) return item;
+        return {
+          ...item,
+          calculationInput: updater(item.calculationInput),
+          calculationResult: null
+        };
+      })
+    );
+  };
+
   const removeItem = (localId: string) => {
     setDraftItems((prev) => prev.filter((item) => item.localId !== localId));
   };
@@ -189,6 +231,9 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
 
   const toggleConfiguredItem = (moduleKey: keyof ScoreConfig, categoryName: string, itemLabel: string) => {
     setDraftItems((prev) => {
+      const itemMeta = getCategoryItems(config, moduleKey, categoryName).find(
+        (item) => (item.value || item.label) === itemLabel
+      );
       const existing = prev.find(
         (item) =>
           item.moduleKey === moduleKey &&
@@ -201,14 +246,28 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
         return prev.filter((item) => item.localId !== existing.localId);
       }
 
-      return [...prev, createDraftItem(moduleKey, categoryName, itemLabel)];
+      const nextItem = createDraftItem(moduleKey, categoryName, itemLabel, itemMeta);
+      const scoringMode = getScoringMode(itemMeta);
+      const filtered =
+        scoringMode === STUDENT_WORK_DUAL_ROLE_SCORING_MODE
+          ? prev.filter(
+              (item) =>
+                !(
+                  item.moduleKey === moduleKey &&
+                  item.categoryName === categoryName &&
+                  item.itemLabel !== OTHER_VALUE
+                )
+            )
+          : prev;
+
+      return [...filtered, nextItem];
     });
   };
 
   const addCustomItem = (moduleKey: keyof ScoreConfig, categoryName: string) => {
     setDraftItems((prev) => [
       ...prev,
-      createDraftItem(moduleKey, categoryName, OTHER_VALUE, {
+      createDraftItem(moduleKey, categoryName, OTHER_VALUE, undefined, {
         customItemLabel: '',
         customDescription: ''
       })
@@ -289,10 +348,15 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
 
   const renderDraftEditor = (item: DraftScoreItem, options?: { showTitle?: boolean; index?: number }) => {
     const itemMeta = getItemMeta(config, item);
+    const categoryMeta = getCategoryMeta(config, item.moduleKey, item.categoryName);
     const isOther = item.itemLabel === OTHER_VALUE;
     const isIntellectual = item.moduleKey === 'intellectual_education';
     const isDaily =
       item.moduleKey === 'physical_aesthetic_labor' && item.categoryName === '日常活动积分';
+    const scoringMode = getScoringMode(itemMeta);
+    const isAutoScoring = !isOther && scoringMode !== MANUAL_SCORING_MODE;
+    const calculationPreview = !isOther ? calculateDraftItemPreview(itemMeta, categoryMeta, item) : null;
+    const ruleHint = !isOther ? getRuleHint(itemMeta) : '';
     const itemTitle = isOther
       ? item.customItemLabel || `自定义项 #${(options?.index || 0) + 1}`
       : itemMeta?.label || item.itemLabel;
@@ -307,7 +371,10 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
               </div>
               <h3 className="font-semibold text-slate-900 mt-1">{itemTitle}</h3>
               {!isOther && itemMeta && (
-                <div className="text-xs text-slate-500 mt-1">参考分值 {Number(itemMeta.base_score).toFixed(2)}</div>
+                <div className="text-xs text-slate-500 mt-1">
+                  参考分值 {Number(itemMeta.base_score).toFixed(2)}
+                  {ruleHint ? ` · ${ruleHint}` : ''}
+                </div>
               )}
             </div>
             <button
@@ -317,6 +384,124 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
             >
               <Trash2 size={16} />
             </button>
+          </div>
+        )}
+
+        {isAutoScoring && categoryMeta && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-3 space-y-3">
+            {scoringMode === COMPETITION_TEAM_SCORING_MODE && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <label className="inline-flex items-center text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={!!item.calculationInput?.isTeamProject}
+                    disabled={!entryEnabled}
+                    onChange={(e) =>
+                      updateCalculationInput(item.localId, (current) => ({
+                        ...(current || {}),
+                        isTeamProject: e.target.checked,
+                        isLeader: e.target.checked ? !!current?.isLeader : false,
+                        teamSize: e.target.checked ? current?.teamSize || '' : ''
+                      }))
+                    }
+                    className="mr-2"
+                  />
+                  团体项目
+                </label>
+
+                {!!item.calculationInput?.isTeamProject && (
+                  <>
+                    <label className="inline-flex items-center text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={!!item.calculationInput?.isLeader}
+                        disabled={!entryEnabled}
+                        onChange={(e) =>
+                          updateCalculationInput(item.localId, (current) => ({
+                            ...(current || {}),
+                            isTeamProject: true,
+                            isLeader: e.target.checked
+                          }))
+                        }
+                        className="mr-2"
+                      />
+                      队长
+                    </label>
+                    <input
+                      value={item.calculationInput?.teamSize ?? ''}
+                      disabled={!entryEnabled}
+                      onChange={(e) =>
+                        updateCalculationInput(item.localId, (current) => ({
+                          ...(current || {}),
+                          isTeamProject: true,
+                          teamSize: e.target.value
+                        }))
+                      }
+                      type="number"
+                      min="2"
+                      step="1"
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="项目人数"
+                    />
+                  </>
+                )}
+              </div>
+            )}
+
+            {scoringMode === STUDENT_WORK_DUAL_ROLE_SCORING_MODE && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="text-sm text-gray-700">
+                  当前主项：<span className="font-medium">{itemMeta?.label || item.itemLabel}</span>
+                </div>
+                <select
+                  value={item.calculationInput?.secondaryItemLabel || ''}
+                  disabled={!entryEnabled}
+                  onChange={(e) =>
+                    updateCalculationInput(item.localId, (current) => ({
+                      ...(current || {}),
+                      secondaryItemLabel: e.target.value
+                    }))
+                  }
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">无第二项学生工作</option>
+                  {categoryMeta.items
+                    .filter((candidate) => !candidate.is_other && (candidate.value || candidate.label) !== item.itemLabel)
+                    .map((candidate) => (
+                      <option key={candidate.value || candidate.label} value={candidate.value || candidate.label}>
+                        {candidate.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            {scoringMode === PAPER_AUTHORSHIP_SCORING_MODE && (
+              <select
+                value={item.calculationInput?.authorshipRole || ''}
+                disabled={!entryEnabled}
+                onChange={(e) =>
+                  updateCalculationInput(item.localId, (current) => ({
+                    ...(current || {}),
+                    authorshipRole: e.target.value as PaperAuthorshipRole
+                  }))
+                }
+                className="px-3 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">请选择作者顺位</option>
+                {paperAuthorshipOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {(calculationPreview?.summary || scoringMode === COMPETITION_PARTICIPATION_SCORING_MODE) && (
+              <div className="text-sm text-blue-900 bg-white border border-blue-200 rounded-lg px-3 py-2">
+                {calculationPreview?.summary || '成功参赛奖固定按 0.5 分计入，累计上限 2 分。'}
+              </div>
+            )}
           </div>
         )}
 
@@ -341,14 +526,14 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input
-            value={item.selfScore}
-            disabled={!entryEnabled}
+            value={isAutoScoring ? String(calculationPreview?.finalScore ?? '') : item.selfScore}
+            disabled={!entryEnabled || isAutoScoring}
             onChange={(e) => updateItem(item.localId, (current) => ({ ...current, selfScore: e.target.value }))}
             type="number"
             min="0"
             step="0.1"
             className="px-3 py-2 border border-gray-300 rounded-lg"
-            placeholder="自评加分"
+            placeholder={isAutoScoring ? '系统自动计算' : '自评加分'}
           />
 
           {isDaily && (
@@ -490,6 +675,9 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                   <div>
                     <div className="text-xs font-semibold tracking-[0.24em] uppercase text-slate-400">{moduleKey}</div>
                     <div className="text-2xl font-bold text-slate-900">{module.module_name}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {module.max_limit ? `模块加分上限 ${module.max_limit} 分` : '模块加分不设总上限'}
+                    </div>
                   </div>
                   <div className="px-3 py-1.5 rounded-full bg-slate-900 text-white text-sm">
                     {getModuleItemCount(draftItems, moduleKey)} 项待填
@@ -666,6 +854,9 @@ const ComprehensiveScorePage: React.FC<ComprehensiveScorePageProps> = ({ token }
                               {report.is_other ? report.custom_item_label || '其它' : report.item_label}
                               {report.custom_description && (
                                 <div className="text-xs text-gray-500 mt-1">说明：{report.custom_description}</div>
+                              )}
+                              {report.calculation_result?.summary && (
+                                <div className="text-xs text-blue-700 mt-1">计算：{report.calculation_result.summary}</div>
                               )}
                             </td>
                             <td className="py-2 pr-4 font-semibold">{Number(report.self_score).toFixed(2)}</td>
