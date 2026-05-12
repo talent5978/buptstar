@@ -445,7 +445,12 @@ app.post('/api/study-plan', async (req, res) => {
     return res.json({ result });
   } catch (error) {
     console.error('Error in API endpoint:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(error.statusCode || 500).json({
+      error: error.message || '生成学习计划失败',
+      code: 'AI_SERVICE_ERROR',
+      providerStatus: error.providerStatus || null,
+      providerCode: error.providerCode || null
+    });
   }
 });
 

@@ -2,6 +2,44 @@
 const database = require('../database');
 const fetch = require('node-fetch');
 
+class LlmServiceError extends Error {
+  constructor(message, options = {}) {
+    super(message);
+    this.name = 'LlmServiceError';
+    this.statusCode = options.statusCode || 502;
+    this.providerStatus = options.providerStatus || null;
+    this.providerCode = options.providerCode || null;
+    this.providerMessage = options.providerMessage || null;
+    this.isOperational = true;
+  }
+}
+
+const parseProviderError = (rawText) => {
+  if (!rawText) return {};
+  try {
+    const parsed = JSON.parse(rawText);
+    return {
+      providerCode: parsed.code || parsed.error?.code || null,
+      providerMessage: parsed.message || parsed.error?.message || rawText
+    };
+  } catch {
+    return { providerMessage: rawText };
+  }
+};
+
+const buildProviderErrorMessage = ({ status, providerMessage }) => {
+  if (status === 401 || status === 403) {
+    return providerMessage ? `AI 服务鉴权或模型不可用：${providerMessage}` : 'AI 服务鉴权失败或模型不可用';
+  }
+  if (status === 429) {
+    return providerMessage ? `AI 服务调用频率受限：${providerMessage}` : 'AI 服务调用频率受限，请稍后重试';
+  }
+  if (status >= 500) {
+    return providerMessage ? `AI 服务暂时不可用：${providerMessage}` : 'AI 服务暂时不可用，请稍后重试';
+  }
+  return providerMessage ? `AI 服务请求失败：${providerMessage}` : `AI 服务请求失败，状态码 ${status}`;
+};
+
 /**
  * 从数据库查找与查询相关的知识上下文
  * @param {string} query - 用户查询
@@ -130,13 +168,29 @@ const generateStudyPlan = async (userQuery, config = {}) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+      const providerError = parseProviderError(errorText);
+      throw new LlmServiceError(
+        buildProviderErrorMessage({
+          status: response.status,
+          providerMessage: providerError.providerMessage
+        }),
+        {
+          statusCode: response.status === 401 || response.status === 403 ? 502 : response.status,
+          providerStatus: response.status,
+          providerCode: providerError.providerCode,
+          providerMessage: providerError.providerMessage
+        }
+      );
     }
 
     const data = await response.json();
 
     if (data.error) {
-      throw new Error(`API error! message: ${data.error.message || JSON.stringify(data.error)}`);
+      throw new LlmServiceError(data.error.message || 'AI 服务返回错误', {
+        statusCode: 502,
+        providerCode: data.error.code || null,
+        providerMessage: data.error.message || JSON.stringify(data.error)
+      });
     }
 
     // 6. 提取并过滤响应内容
@@ -146,7 +200,12 @@ const generateStudyPlan = async (userQuery, config = {}) => {
     return content;
   } catch (error) {
     console.error("LLM API Error:", error);
-    throw new Error(`生成学习计划失败: ${error.message}`);
+    if (error instanceof LlmServiceError) {
+      throw error;
+    }
+    throw new LlmServiceError(`生成学习计划失败：${error.message}`, {
+      statusCode: 502
+    });
   }
 };
 
@@ -184,13 +243,29 @@ const chatCompletion = async (messages, options = {}) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+    const providerError = parseProviderError(errorText);
+    throw new LlmServiceError(
+      buildProviderErrorMessage({
+        status: response.status,
+        providerMessage: providerError.providerMessage
+      }),
+      {
+        statusCode: response.status === 401 || response.status === 403 ? 502 : response.status,
+        providerStatus: response.status,
+        providerCode: providerError.providerCode,
+        providerMessage: providerError.providerMessage
+      }
+    );
   }
 
   const data = await response.json();
 
   if (data.error) {
-    throw new Error(`API error! ${data.error.message || JSON.stringify(data.error)}`);
+    throw new LlmServiceError(data.error.message || 'AI 服务返回错误', {
+      statusCode: 502,
+      providerCode: data.error.code || null,
+      providerMessage: data.error.message || JSON.stringify(data.error)
+    });
   }
 
   let content = data.choices?.[0]?.message?.content || '';
@@ -207,5 +282,6 @@ module.exports = {
   generateStudyPlan,
   chatCompletion,
   findRelevantContext,
-  filterThinkingChain
+  filterThinkingChain,
+  LlmServiceError
 };
