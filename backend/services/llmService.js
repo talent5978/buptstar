@@ -63,7 +63,7 @@ const fetchWithTimeout = async (endpoint, requestOptions, timeoutMs) => {
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new LlmServiceError(`AI 服务响应超时（${Math.round(timeoutMs / 1000)}秒），请稍后重试或缩短问题后再试`, {
-        statusCode: 504,
+        statusCode: 503,
         providerCode: 'TIMEOUT',
         providerMessage: 'LLM request timed out'
       });
