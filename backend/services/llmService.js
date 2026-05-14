@@ -2,6 +2,9 @@
 const database = require('../database');
 const fetch = require('node-fetch');
 
+const DEFAULT_LLM_TIMEOUT_MS = 45000;
+const DEFAULT_LLM_MAX_TOKENS = 1200;
+
 class LlmServiceError extends Error {
   constructor(message, options = {}) {
     super(message);
@@ -38,6 +41,37 @@ const buildProviderErrorMessage = ({ status, providerMessage }) => {
     return providerMessage ? `AI 服务暂时不可用：${providerMessage}` : 'AI 服务暂时不可用，请稍后重试';
   }
   return providerMessage ? `AI 服务请求失败：${providerMessage}` : `AI 服务请求失败，状态码 ${status}`;
+};
+
+const readPositiveInt = (value, fallback) => {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const resolveTimeoutMs = (override) => readPositiveInt(override || process.env.LLM_TIMEOUT_MS, DEFAULT_LLM_TIMEOUT_MS);
+const resolveMaxTokens = (override) => readPositiveInt(override || process.env.LLM_MAX_TOKENS, DEFAULT_LLM_MAX_TOKENS);
+
+const fetchWithTimeout = async (endpoint, requestOptions, timeoutMs) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(endpoint, {
+      ...requestOptions,
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new LlmServiceError(`AI 服务响应超时（${Math.round(timeoutMs / 1000)}秒），请稍后重试或缩短问题后再试`, {
+        statusCode: 504,
+        providerCode: 'TIMEOUT',
+        providerMessage: 'LLM request timed out'
+      });
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 };
 
 /**
@@ -114,6 +148,8 @@ const generateStudyPlan = async (userQuery, config = {}) => {
   const apiKey = config.apiKey || process.env.LLM_API_KEY;
   const endpoint = config.endpoint || process.env.LLM_API_ENDPOINT;
   const model = config.model || process.env.LLM_MODEL;
+  const timeoutMs = resolveTimeoutMs(config.timeoutMs);
+  const maxTokens = resolveMaxTokens(config.maxTokens);
 
   if (!apiKey) {
     console.error("LLM API key is missing.");
@@ -151,20 +187,20 @@ const generateStudyPlan = async (userQuery, config = {}) => {
       ],
       temperature: 0.7,
       top_p: 0.95,
-      max_tokens: 2000
+      max_tokens: maxTokens
     };
 
-    console.log(`Calling LLM API: ${endpoint} with model: ${model}`);
+    console.log(`Calling LLM API: ${endpoint} with model: ${model}, timeout: ${timeoutMs}ms, max_tokens: ${maxTokens}`);
 
     // 5. 发送请求
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify(requestBody)
-    });
+    }, timeoutMs);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -219,6 +255,8 @@ const chatCompletion = async (messages, options = {}) => {
   const apiKey = options.apiKey || process.env.LLM_API_KEY;
   const endpoint = options.endpoint || process.env.LLM_API_ENDPOINT;
   const model = options.model || process.env.LLM_MODEL;
+  const timeoutMs = resolveTimeoutMs(options.timeoutMs);
+  const maxTokens = resolveMaxTokens(options.maxTokens);
 
   if (!apiKey || !endpoint || !model) {
     throw new Error('LLM configuration incomplete. Check LLM_API_KEY, LLM_API_ENDPOINT, LLM_MODEL in .env');
@@ -229,17 +267,17 @@ const chatCompletion = async (messages, options = {}) => {
     messages: messages,
     temperature: options.temperature ?? 0.7,
     top_p: options.topP ?? 0.95,
-    max_tokens: options.maxTokens ?? 2000
+    max_tokens: maxTokens
   };
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify(requestBody)
-  });
+  }, timeoutMs);
 
   if (!response.ok) {
     const errorText = await response.text();

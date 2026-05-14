@@ -112,7 +112,9 @@ buptstar-web/
    # JWT_SECRET=replace-with-a-secure-random-secret
    # LLM_API_KEY=your-api-key
    # LLM_API_ENDPOINT=https://api.siliconflow.cn/v1/chat/completions
-   # LLM_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+   # LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash
+   # LLM_TIMEOUT_MS=45000
+   # LLM_MAX_TOKENS=1200
    # 注：LLM_API_KEY 同时用于 AI 学习规划和 AI 图像生成接口
    ```
 
