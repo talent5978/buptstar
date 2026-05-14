@@ -1,4 +1,9 @@
-export const generateStudyPlan = async (userQuery: string): Promise<string> => {
+export type StudyPlanHistoryMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export const generateStudyPlan = async (userQuery: string, history: StudyPlanHistoryMessage[] = []): Promise<string> => {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 55000);
 
@@ -9,7 +14,7 @@ export const generateStudyPlan = async (userQuery: string): Promise<string> => {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ query: userQuery }),
+      body: JSON.stringify({ query: userQuery, messages: history }),
       signal: controller.signal
     });
 
@@ -44,6 +49,7 @@ export const generateStudyPlan = async (userQuery: string): Promise<string> => {
 type StreamPayload = {
   token?: string;
   error?: string;
+  finishReason?: string | null;
   providerStatus?: number | null;
   providerCode?: string | null;
 };
@@ -72,7 +78,8 @@ const parseSseBlock = (block: string): { event: string; payload: StreamPayload }
 
 export const streamStudyPlan = async (
   userQuery: string,
-  onToken: (token: string, fullText: string) => void
+  onToken: (token: string, fullText: string) => void,
+  history: StudyPlanHistoryMessage[] = []
 ): Promise<string> => {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 60000);
@@ -85,12 +92,12 @@ export const streamStudyPlan = async (
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream'
       },
-      body: JSON.stringify({ query: userQuery }),
+      body: JSON.stringify({ query: userQuery, messages: history }),
       signal: controller.signal
     });
 
     if (!response.ok || !response.body) {
-      return generateStudyPlan(userQuery);
+      return generateStudyPlan(userQuery, history);
     }
 
     const reader = response.body.getReader();
@@ -107,7 +114,14 @@ export const streamStudyPlan = async (
           : '';
         throw new Error(parsed.payload.error ? `${parsed.payload.error}${providerInfo}` : 'AI 服务请求失败');
       }
-      return parsed?.event === 'done';
+      if (parsed?.event === 'done') {
+        if (parsed.payload.finishReason === 'length') {
+          fullText += '\n\n（本次回答达到长度上限，你可以输入“继续”，我会接着上一段继续展开。）';
+          onToken('', fullText);
+        }
+        return true;
+      }
+      return false;
     };
 
     while (true) {

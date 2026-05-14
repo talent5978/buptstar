@@ -114,7 +114,7 @@ buptstar-web/
    # LLM_API_ENDPOINT=https://api.siliconflow.cn/v1/chat/completions
    # LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash
    # LLM_TIMEOUT_MS=45000
-   # LLM_MAX_TOKENS=1200
+   # LLM_MAX_TOKENS=2400
    # 注：LLM_API_KEY 同时用于 AI 学习规划和 AI 图像生成接口
    ```
 

@@ -439,9 +439,9 @@ app.patch('/api/admin/score-reports/:id/review', authenticate, requireRole('admi
 // ==================== AI APIs ====================
 app.post('/api/study-plan', async (req, res) => {
   try {
-    const { query } = req.body;
+    const { query, messages } = req.body;
     if (!query) return res.status(400).json({ error: 'Query parameter is required' });
-    const result = await llmService.generateStudyPlan(query);
+    const result = await llmService.generateStudyPlan(query, { history: messages });
     return res.json({ result });
   } catch (error) {
     console.error('Error in API endpoint:', error);
@@ -460,7 +460,7 @@ const writeSseEvent = (res, event, payload) => {
 };
 
 app.post('/api/study-plan/stream', async (req, res) => {
-  const { query } = req.body || {};
+  const { query, messages } = req.body || {};
   if (!query) return res.status(400).json({ error: 'Query parameter is required' });
 
   const abortController = new AbortController();
@@ -479,11 +479,12 @@ app.post('/api/study-plan/stream', async (req, res) => {
   try {
     await llmService.streamStudyPlan(query, {
       onToken: (token) => writeSseEvent(res, 'chunk', { token }),
-      onDone: () => {
+      onDone: ({ finishReason } = {}) => {
         completed = true;
-        writeSseEvent(res, 'done', {});
+        writeSseEvent(res, 'done', { finishReason: finishReason || null });
       }
     }, {
+      history: messages,
       signal: abortController.signal
     });
   } catch (error) {

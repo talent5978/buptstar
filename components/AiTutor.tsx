@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { Bot, Send, User, Sparkles } from 'lucide-react';
-import { streamStudyPlan } from '../services/baiduService';
+import { StudyPlanHistoryMessage, streamStudyPlan } from '../services/baiduService';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage, ChatSender } from '../types';
 import { Link } from 'react-router-dom';
@@ -35,6 +35,14 @@ const AiTutor: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
+    const history: StudyPlanHistoryMessage[] = messages
+      .filter((msg) => msg.id !== 'welcome' && msg.text.trim())
+      .slice(-10)
+      .map((msg) => ({
+        role: msg.sender === ChatSender.USER ? 'user' : 'assistant',
+        content: msg.text
+      }));
+
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: ChatSender.USER,
@@ -61,7 +69,7 @@ const AiTutor: React.FC = () => {
         setMessages(prev => prev.map(msg => (
           msg.id === aiMsgId ? { ...msg, text: fullText } : msg
         )));
-      });
+      }, history);
 
       setMessages(prev => prev.map(msg => (
         msg.id === aiMsgId ? { ...msg, text: responseText } : msg

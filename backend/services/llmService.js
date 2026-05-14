@@ -5,7 +5,7 @@ const { StringDecoder } = require('string_decoder');
 const jointTrainingProjects = require('../data/jointTrainingProjects.json');
 
 const DEFAULT_LLM_TIMEOUT_MS = 45000;
-const DEFAULT_LLM_MAX_TOKENS = 1200;
+const DEFAULT_LLM_MAX_TOKENS = 2400;
 
 class LlmServiceError extends Error {
   constructor(message, options = {}) {
@@ -106,15 +106,40 @@ const fetchStreamWithTimeout = async (endpoint, requestOptions, timeoutMs, exter
   }
 };
 
-const buildStudyPlanMessages = (userQuery) => {
-  const knowledgeContext = findRelevantContext(userQuery);
-  const systemInstruction = `你是一位优秀的学习规划师"小卓"，根据用户的需求，结合提供的知识库信息，为用户制定详细的学习计划。回复应该清晰、有条理，并提供具体的学习建议和资源。如果知识库信息包含“校企联培课题库”，请优先基于其中的硕博类别、联培企业、领域、所在单位和课题名称进行个性化分析：总结用户可能涉及的课题方向、需要关注的知识体系、前置学习路线，并在信息不足时主动追问用户的类别、企业、领域或单位。不要臆造学生个人信息，也不要把课题样例说成用户已确定的个人课题。如果没有提供知识库信息，则根据你的专业知识进行回答。`;
+const normalizeConversationHistory = (history = []) => {
+  if (!Array.isArray(history)) return [];
+  return history
+    .map((message) => ({
+      role: message.role === 'assistant' ? 'assistant' : message.role === 'user' ? 'user' : null,
+      content: String(message.content || '').trim()
+    }))
+    .filter((message) => message.role && message.content)
+    .slice(-10);
+};
+
+const isContinuationQuery = (query) => /^(继续|接着说|继续说|往下说|展开|继续展开|more|continue)$/i.test(String(query || '').trim());
+
+const buildStudyPlanMessages = (userQuery, history = []) => {
+  const conversationHistory = normalizeConversationHistory(history);
+  const searchQuery = [
+    ...conversationHistory.filter((message) => message.role === 'user').map((message) => message.content),
+    userQuery
+  ].join('\n');
+  const knowledgeContext = findRelevantContext(searchQuery);
+  const systemInstruction = `你是一位优秀的学习规划师"小卓"，根据用户的需求，结合提供的知识库信息，为用户制定学习建议。
+重要交互规则：
+1. 除非用户已经明确给出身份/阶段、联培企业或方向、基础水平、目标和时间范围，否则不要直接输出很长的完整计划。先用简短分析概括你已识别的信息，再提出2-4个关键追问。
+2. 对联培场景，如果用户只提供“企业+学历/方向”这类粗粒度信息，回答控制在600字以内：先列出2-4个可能方向和通用前置知识，再追问具体单位/课题、已有基础、目标时间线。不要直接给完整3个月以上长计划。
+3. 如果用户已经给出足够信息，再给出分阶段学习路径；仍要控制篇幅，优先给可执行框架，必要时邀请用户输入“继续”获取后续细化。
+4. 如果用户说“继续/接着说”，请基于前文未完成的回答继续展开，不要重新开场，也不要再次索要已经在上下文中出现的信息。
+5. 如果知识库信息包含“校企联培课题库”，请优先基于其中的硕博类别、联培企业、领域、所在单位和课题名称进行个性化分析：总结用户可能涉及的课题方向、需要关注的知识体系、前置学习路线。不要臆造学生个人信息，也不要把课题样例说成用户已确定的个人课题。`;
   const userMessage = knowledgeContext
-    ? `知识库信息：${knowledgeContext}\n\n用户问题：${userQuery}`
-    : userQuery;
+    ? `知识库信息：${knowledgeContext}\n\n当前用户问题：${userQuery}${isContinuationQuery(userQuery) ? '\n\n提示：用户正在要求继续上一轮回答，请结合对话历史续写。' : ''}`
+    : `${userQuery}${isContinuationQuery(userQuery) ? '\n\n提示：用户正在要求继续上一轮回答，请结合对话历史续写。' : ''}`;
 
   return [
     { role: "system", content: systemInstruction },
+    ...conversationHistory,
     { role: "user", content: userMessage }
   ];
 };
@@ -285,7 +310,8 @@ const scoreJointTrainingRecord = (record, query, filters) => {
     score += 8;
   }
   if (filters.fields.length) {
-    if (filters.fields.includes(record.field)) score += 4;
+    if (!filters.fields.includes(record.field)) return -1;
+    score += 4;
   }
   if (filters.units.length) {
     if (!filters.units.includes(record.unit)) return -1;
@@ -372,7 +398,7 @@ const generateStudyPlan = async (userQuery, config = {}) => {
     // 构建请求体（OpenAI格式）
     const requestBody = {
       model: model,
-      messages: buildStudyPlanMessages(userQuery),
+      messages: buildStudyPlanMessages(userQuery, config.history),
       temperature: 0.7,
       top_p: 0.95,
       max_tokens: maxTokens
@@ -483,6 +509,7 @@ const streamChatCompletion = async (messages, handlers = {}, options = {}) => {
 
   const decoder = new StringDecoder('utf8');
   let buffer = '';
+  let finishReason = null;
 
   const consumeEventBlock = (block) => {
     const data = block
@@ -510,7 +537,9 @@ const streamChatCompletion = async (messages, handlers = {}, options = {}) => {
       });
     }
 
-    const content = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.message?.content || '';
+    const choice = parsed.choices?.[0];
+    if (choice?.finish_reason) finishReason = choice.finish_reason;
+    const content = choice?.delta?.content || choice?.message?.content || '';
     if (content) handlers.onToken?.(content);
 
     return false;
@@ -528,7 +557,7 @@ const streamChatCompletion = async (messages, handlers = {}, options = {}) => {
         buffer = buffer.slice(separatorIndex + separator.length);
         const done = consumeEventBlock(block);
         if (done) {
-          handlers.onDone?.();
+          handlers.onDone?.({ finishReason });
           return;
         }
         separatorIndex = buffer.search(/\r?\n\r?\n/);
@@ -537,7 +566,7 @@ const streamChatCompletion = async (messages, handlers = {}, options = {}) => {
 
     buffer += decoder.end();
     if (buffer.trim()) consumeEventBlock(buffer);
-    handlers.onDone?.();
+    handlers.onDone?.({ finishReason });
   } catch (error) {
     console.error("LLM Stream Error:", error);
     if (error instanceof LlmServiceError) throw error;
@@ -548,7 +577,7 @@ const streamChatCompletion = async (messages, handlers = {}, options = {}) => {
 };
 
 const streamStudyPlan = async (userQuery, handlers = {}, options = {}) => {
-  return streamChatCompletion(buildStudyPlanMessages(userQuery), handlers, options);
+  return streamChatCompletion(buildStudyPlanMessages(userQuery, options.history), handlers, options);
 };
 
 /**
