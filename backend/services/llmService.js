@@ -2,6 +2,7 @@
 const database = require('../database');
 const fetch = require('node-fetch');
 const { StringDecoder } = require('string_decoder');
+const jointTrainingProjects = require('../data/jointTrainingProjects.json');
 
 const DEFAULT_LLM_TIMEOUT_MS = 45000;
 const DEFAULT_LLM_MAX_TOKENS = 1200;
@@ -107,7 +108,7 @@ const fetchStreamWithTimeout = async (endpoint, requestOptions, timeoutMs, exter
 
 const buildStudyPlanMessages = (userQuery) => {
   const knowledgeContext = findRelevantContext(userQuery);
-  const systemInstruction = `你是一位优秀的学习规划师"小卓"，根据用户的需求，结合提供的知识库信息，为用户制定详细的学习计划。回复应该清晰、有条理，并提供具体的学习建议和资源。如果没有提供知识库信息，则根据你的专业知识进行回答。`;
+  const systemInstruction = `你是一位优秀的学习规划师"小卓"，根据用户的需求，结合提供的知识库信息，为用户制定详细的学习计划。回复应该清晰、有条理，并提供具体的学习建议和资源。如果知识库信息包含“校企联培课题库”，请优先基于其中的硕博类别、联培企业、领域、所在单位和课题名称进行个性化分析：总结用户可能涉及的课题方向、需要关注的知识体系、前置学习路线，并在信息不足时主动追问用户的类别、企业、领域或单位。不要臆造学生个人信息，也不要把课题样例说成用户已确定的个人课题。如果没有提供知识库信息，则根据你的专业知识进行回答。`;
   const userMessage = knowledgeContext
     ? `知识库信息：${knowledgeContext}\n\n用户问题：${userQuery}`
     : userQuery;
@@ -145,6 +146,8 @@ const findRelevantContext = (query) => {
         }
       }
     });
+
+    context += buildJointTrainingContext(query);
   } catch (error) {
     console.warn('从数据库获取知识上下文失败，使用空上下文:', error.message);
   }
@@ -179,6 +182,161 @@ const filterThinkingChain = (content) => {
   filtered = filtered.replace(/^\s*\n/gm, '').trim();
 
   return filtered;
+};
+
+const compactCounts = (records, key, limit = 8) => {
+  const counts = new Map();
+  records.forEach((record) => {
+    const value = record[key] || '未标注';
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([name, count]) => `${name}${count}项`)
+    .join('、');
+};
+
+const getJointTrainingRecords = () => {
+  try {
+    const records = database.getAllJointTrainingProjects?.();
+    if (Array.isArray(records) && records.length) return records;
+  } catch (error) {
+    console.warn('从数据库读取校企联培课题库失败，回退到种子数据:', error.message);
+  }
+  return jointTrainingProjects.records || [];
+};
+
+const detectJointTrainingFilters = (query) => {
+  const text = String(query || '');
+  const filters = { degrees: [], enterprises: [], fields: [], units: [] };
+
+  if (text.includes('直博')) filters.degrees.push('直博');
+  else if (text.includes('博士') || text.includes('博联培')) filters.degrees.push('博士', '直博');
+  if (text.includes('硕士') || text.includes('硕联培')) filters.degrees.push('硕士');
+
+  const enterpriseAliases = [
+    ['中国星网', ['中国星网', '星网']],
+    ['中国电信', ['中国电信', '电信']],
+    ['中国联通', ['中国联通', '联通']],
+    ['中国移动', ['中国移动', '移动']],
+    ['中国通号', ['中国通号', '通号']],
+    ['中国电科', ['中国电科', '电科']],
+    ['奇安信', ['奇安信']],
+    ['华为(东莞)', ['华为', '东莞']],
+    ['华为（深圳）', ['华为', '深圳']],
+    ['华为技术有限公司（深圳）', ['华为', '深圳']],
+    ['小米集团', ['小米']],
+    ['中关村国家实验室', ['中关村国家实验室']],
+    ['北京微芯区块链与边缘计算研究院', ['微芯', '区块链与边缘计算']],
+    ['上海海思技术有限公司', ['海思']],
+    ['燕东微电子', ['燕东']],
+    ['北方华创科技集团', ['北方华创']],
+    ['北方华创科技集团股份有限公司', ['北方华创']]
+  ];
+
+  enterpriseAliases.forEach(([enterprise, aliases]) => {
+    if (aliases.some((alias) => text.includes(alias))) filters.enterprises.push(enterprise);
+  });
+
+  getJointTrainingRecords().forEach((record) => {
+    if (record.enterprise && text.includes(record.enterprise)) filters.enterprises.push(record.enterprise);
+    if (record.unit && text.includes(record.unit)) filters.units.push(record.unit);
+  });
+
+  const fieldAliases = [
+    ['新一代信息通信技术', ['新一代信息通信技术', '通信', '卫星', '星座', '6G', '5G', '空天地', '网络']],
+    ['网络安全', ['网络安全', '安全', '密码', '可信', '隐私']],
+    ['人工智能', ['人工智能', 'AI', '大模型', '智能体', '机器学习']],
+    ['半导体', ['半导体', '芯片', '集成电路', '微电子']],
+    ['关键软件', ['关键软件', '软件', '操作系统']]
+  ];
+
+  fieldAliases.forEach(([field, aliases]) => {
+    if (aliases.some((alias) => text.includes(alias))) filters.fields.push(field);
+  });
+
+  filters.degrees = [...new Set(filters.degrees)];
+  filters.enterprises = [...new Set(filters.enterprises)];
+  filters.fields = [...new Set(filters.fields)];
+  filters.units = [...new Set(filters.units)];
+  return filters;
+};
+
+const isJointTrainingQuery = (query, filters) => {
+  const text = String(query || '');
+  const triggerTerms = ['联培', '课题', '校企', '企业', '前置学习', '学习哪些', '学习路径', '培养方案', '所在单位'];
+  return triggerTerms.some((term) => text.includes(term))
+    || filters.enterprises.length > 0
+    || filters.units.length > 0
+    || (filters.degrees.length > 0 && filters.fields.length > 0);
+};
+
+const scoreJointTrainingRecord = (record, query, filters) => {
+  const text = String(query || '');
+  let score = 0;
+
+  if (filters.degrees.length) {
+    if (!filters.degrees.includes(record.degree)) return -1;
+    score += 5;
+  }
+  if (filters.enterprises.length) {
+    if (!filters.enterprises.includes(record.enterprise)) return -1;
+    score += 8;
+  }
+  if (filters.fields.length) {
+    if (filters.fields.includes(record.field)) score += 4;
+  }
+  if (filters.units.length) {
+    if (!filters.units.includes(record.unit)) return -1;
+    score += 6;
+  }
+
+  [record.topic, record.unit, record.field, record.enterprise].forEach((value) => {
+    String(value || '')
+      .split(/[、，,（）()《》\s]+/)
+      .filter((word) => word.length >= 2)
+      .forEach((word) => {
+        if (text.includes(word)) score += 2;
+      });
+  });
+
+  return score;
+};
+
+const buildJointTrainingContext = (query) => {
+  const records = getJointTrainingRecords();
+  const filters = detectJointTrainingFilters(query);
+  if (!records.length || !isJointTrainingQuery(query, filters)) return '';
+
+  let candidates = records
+    .map((record) => ({ record, score: scoreJointTrainingRecord(record, query, filters) }))
+    .filter((item) => item.score >= 0);
+
+  if (!candidates.length) {
+    candidates = records.map((record) => ({ record, score: 0 }));
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  const matched = candidates.map((item) => item.record);
+  const selected = matched.slice(0, 24);
+  const filterSummary = [
+    filters.degrees.length ? `类别=${filters.degrees.join('/')}` : '',
+    filters.enterprises.length ? `企业=${filters.enterprises.join('/')}` : '',
+    filters.fields.length ? `领域=${filters.fields.join('/')}` : '',
+    filters.units.length ? `单位=${filters.units.join('/')}` : ''
+  ].filter(Boolean).join('，') || '未识别到明确筛选条件';
+
+  const projectLines = selected.map((record, index) => (
+    `${index + 1}. ${record.degree || '未标注'} / ${record.enterprise || '未标注'} / ${record.field || '未标注'} / ${record.unit || '未标注'}：${record.topic}`
+  ));
+
+  return `\n[校企联培课题库]\n`
+    + `数据说明：${jointTrainingProjects.privacyNote}\n`
+    + `总览：共${records.length}项；类别分布：${compactCounts(records, 'degree')}；领域分布：${compactCounts(records, 'field')}。\n`
+    + `本次识别条件：${filterSummary}；匹配到${matched.length}项，以下为最相关课题样例。\n`
+    + `${projectLines.join('\n')}\n`
+    + `回答要求：基于这些课题样例概括学生可能涉及的方向、前置知识体系和建议学习路径；不要声称已确定学生具体课题；如用户未说明硕士/博士、企业、领域或单位，请先给出通用建议并主动追问这些信息。\n`;
 };
 
 /**

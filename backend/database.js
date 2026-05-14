@@ -1,6 +1,7 @@
 // SQLite数据库模块
 const Database = require('better-sqlite3');
 const path = require('path');
+const jointTrainingProjectData = require('./data/jointTrainingProjects.json');
 
 const DB_PATH = path.join(__dirname, 'buptstar.db');
 const db = new Database(DB_PATH);
@@ -35,6 +36,31 @@ const ensureColumn = (tableName, columnName, definition) => {
   if (!exists) {
     db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
   }
+};
+
+const seedJointTrainingProjects = () => {
+  const records = Array.isArray(jointTrainingProjectData.records) ? jointTrainingProjectData.records : [];
+
+  const insert = db.prepare(`
+    INSERT INTO joint_training_projects (id, degree, enterprise, field, unit, topic)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  const sync = db.transaction(() => {
+    db.prepare('DELETE FROM joint_training_projects').run();
+    records.forEach((record) => {
+      insert.run(
+        record.id,
+        record.degree || '',
+        record.enterprise || '',
+        record.field || '',
+        record.unit || '',
+        record.topic || ''
+      );
+    });
+  });
+
+  sync();
 };
 
 const initTables = () => {
@@ -163,9 +189,23 @@ const initTables = () => {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS joint_training_projects (
+      id TEXT PRIMARY KEY,
+      degree TEXT,
+      enterprise TEXT,
+      field TEXT,
+      unit TEXT,
+      topic TEXT
+    )
+  `);
+
   db.exec('CREATE INDEX IF NOT EXISTS idx_score_reports_v2_user ON score_reports_v2(user_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_score_reports_v2_status ON score_reports_v2(status)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_score_reports_v2_submission ON score_reports_v2(submission_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_joint_training_projects_degree ON joint_training_projects(degree)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_joint_training_projects_enterprise ON joint_training_projects(enterprise)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_joint_training_projects_field ON joint_training_projects(field)');
 
   ensureColumn('score_reports_v2', 'calculation_mode', 'TEXT');
   ensureColumn('score_reports_v2', 'calculation_payload', 'TEXT');
@@ -175,6 +215,8 @@ const initTables = () => {
   if (!exists) {
     db.prepare('INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, ?)').run('score_entry_enabled', '1', now());
   }
+
+  seedJointTrainingProjects();
 };
 
 initTables();
@@ -207,6 +249,10 @@ module.exports = {
     `);
     return stmt.run(data.id, data.name, data.icon, data.overview, data.ideologicalPoint, data.history, data.future);
   },
+
+  // 校企联培课题库
+  getAllJointTrainingProjects: () =>
+    db.prepare('SELECT id, degree, enterprise, field, unit, topic FROM joint_training_projects ORDER BY id ASC').all(),
 
   // 案例操作
   getAllCases: () => {

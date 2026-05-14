@@ -97,8 +97,8 @@ const AiTutor: React.FC = () => {
                 <button onClick={() => setInput("我想学习卫星互联网领域的红色工程案例，请推荐学习路径。")} className="block w-full text-left p-3 bg-white rounded-lg border border-blue-100 hover:border-blue-300 hover:shadow-md transition-all text-sm text-gray-700">
                     "我想学习卫星互联网领域的红色工程案例..."
                 </button>
-                <button onClick={() => setInput("作为软件工程专业的学生，我该如何培养家国情怀？")} className="block w-full text-left p-3 bg-white rounded-lg border border-blue-100 hover:border-blue-300 hover:shadow-md transition-all text-sm text-gray-700">
-                    "作为软件工程专业的学生，如何培养家国情怀？"
+                <button onClick={() => setInput("我是星网联培的硕士，应该前置学习哪些内容？")} className="block w-full text-left p-3 bg-white rounded-lg border border-blue-100 hover:border-blue-300 hover:shadow-md transition-all text-sm text-gray-700">
+                    "我是星网联培的硕士，应该前置学习哪些内容？"
                 </button>
                 <button onClick={() => setInput("请介绍孙家栋院士的事迹及其精神内涵。")} className="block w-full text-left p-3 bg-white rounded-lg border border-blue-100 hover:border-blue-300 hover:shadow-md transition-all text-sm text-gray-700">
                     "请介绍孙家栋院士的事迹及其精神内涵。"
