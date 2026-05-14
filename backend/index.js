@@ -454,6 +454,54 @@ app.post('/api/study-plan', async (req, res) => {
   }
 });
 
+const writeSseEvent = (res, event, payload) => {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+};
+
+app.post('/api/study-plan/stream', async (req, res) => {
+  const { query } = req.body || {};
+  if (!query) return res.status(400).json({ error: 'Query parameter is required' });
+
+  const abortController = new AbortController();
+  let completed = false;
+
+  res.on('close', () => {
+    if (!completed) abortController.abort();
+  });
+
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  try {
+    await llmService.streamStudyPlan(query, {
+      onToken: (token) => writeSseEvent(res, 'chunk', { token }),
+      onDone: () => {
+        completed = true;
+        writeSseEvent(res, 'done', {});
+      }
+    }, {
+      signal: abortController.signal
+    });
+  } catch (error) {
+    if (!abortController.signal.aborted) {
+      console.error('Error in streaming API endpoint:', error);
+      writeSseEvent(res, 'error', {
+        error: error.message || '生成学习计划失败',
+        code: 'AI_SERVICE_ERROR',
+        providerStatus: error.providerStatus || null,
+        providerCode: error.providerCode || null
+      });
+    }
+  } finally {
+    completed = true;
+    res.end();
+  }
+});
+
 app.post('/api/generate-image', async (req, res) => {
   try {
     const { prompt } = req.body;

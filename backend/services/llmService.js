@@ -1,6 +1,7 @@
 // 通用LLM服务 - 兼容OpenAI格式API
 const database = require('../database');
 const fetch = require('node-fetch');
+const { StringDecoder } = require('string_decoder');
 
 const DEFAULT_LLM_TIMEOUT_MS = 45000;
 const DEFAULT_LLM_MAX_TOKENS = 1200;
@@ -72,6 +73,49 @@ const fetchWithTimeout = async (endpoint, requestOptions, timeoutMs) => {
   } finally {
     clearTimeout(timer);
   }
+};
+
+const fetchStreamWithTimeout = async (endpoint, requestOptions, timeoutMs, externalSignal) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const abortFromExternal = () => controller.abort();
+
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener('abort', abortFromExternal, { once: true });
+  }
+
+  try {
+    return await fetch(endpoint, {
+      ...requestOptions,
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new LlmServiceError(`AI 服务响应超时（${Math.round(timeoutMs / 1000)}秒），请稍后重试或缩短问题后再试`, {
+        statusCode: 503,
+        providerCode: 'TIMEOUT',
+        providerMessage: 'LLM stream request timed out'
+      });
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    if (externalSignal) externalSignal.removeEventListener('abort', abortFromExternal);
+  }
+};
+
+const buildStudyPlanMessages = (userQuery) => {
+  const knowledgeContext = findRelevantContext(userQuery);
+  const systemInstruction = `你是一位优秀的学习规划师"小卓"，根据用户的需求，结合提供的知识库信息，为用户制定详细的学习计划。回复应该清晰、有条理，并提供具体的学习建议和资源。如果没有提供知识库信息，则根据你的专业知识进行回答。`;
+  const userMessage = knowledgeContext
+    ? `知识库信息：${knowledgeContext}\n\n用户问题：${userQuery}`
+    : userQuery;
+
+  return [
+    { role: "system", content: systemInstruction },
+    { role: "user", content: userMessage }
+  ];
 };
 
 /**
@@ -167,24 +211,10 @@ const generateStudyPlan = async (userQuery, config = {}) => {
   }
 
   try {
-    // 1. 从数据库获取相关上下文
-    const knowledgeContext = findRelevantContext(userQuery);
-
-    // 2. 构建系统指令
-    const systemInstruction = `你是一位优秀的学习规划师"小卓"，根据用户的需求，结合提供的知识库信息，为用户制定详细的学习计划。回复应该清晰、有条理，并提供具体的学习建议和资源。如果没有提供知识库信息，则根据你的专业知识进行回答。`;
-
-    // 3. 构建用户消息（可选包含知识上下文）
-    const userMessage = knowledgeContext
-      ? `知识库信息：${knowledgeContext}\n\n用户问题：${userQuery}`
-      : userQuery;
-
-    // 4. 构建请求体（OpenAI格式）
+    // 构建请求体（OpenAI格式）
     const requestBody = {
       model: model,
-      messages: [
-        { role: "system", content: systemInstruction },
-        { role: "user", content: userMessage }
-      ],
+      messages: buildStudyPlanMessages(userQuery),
       temperature: 0.7,
       top_p: 0.95,
       max_tokens: maxTokens
@@ -243,6 +273,124 @@ const generateStudyPlan = async (userQuery, config = {}) => {
       statusCode: 502
     });
   }
+};
+
+const streamChatCompletion = async (messages, handlers = {}, options = {}) => {
+  const apiKey = options.apiKey || process.env.LLM_API_KEY;
+  const endpoint = options.endpoint || process.env.LLM_API_ENDPOINT;
+  const model = options.model || process.env.LLM_MODEL;
+  const timeoutMs = resolveTimeoutMs(options.timeoutMs);
+  const maxTokens = resolveMaxTokens(options.maxTokens);
+
+  if (!apiKey || !endpoint || !model) {
+    throw new Error('LLM configuration incomplete. Check LLM_API_KEY, LLM_API_ENDPOINT, LLM_MODEL in .env');
+  }
+
+  const requestBody = {
+    model,
+    messages,
+    temperature: options.temperature ?? 0.7,
+    top_p: options.topP ?? 0.95,
+    max_tokens: maxTokens,
+    stream: true
+  };
+
+  console.log(`Streaming LLM API: ${endpoint} with model: ${model}, timeout: ${timeoutMs}ms, max_tokens: ${maxTokens}`);
+
+  const response = await fetchStreamWithTimeout(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(requestBody)
+  }, timeoutMs, options.signal);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    const providerError = parseProviderError(errorText);
+    throw new LlmServiceError(
+      buildProviderErrorMessage({
+        status: response.status,
+        providerMessage: providerError.providerMessage
+      }),
+      {
+        statusCode: response.status === 401 || response.status === 403 ? 502 : response.status,
+        providerStatus: response.status,
+        providerCode: providerError.providerCode,
+        providerMessage: providerError.providerMessage
+      }
+    );
+  }
+
+  const decoder = new StringDecoder('utf8');
+  let buffer = '';
+
+  const consumeEventBlock = (block) => {
+    const data = block
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n')
+      .trim();
+
+    if (!data) return false;
+    if (data === '[DONE]') return true;
+
+    let parsed;
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      return false;
+    }
+
+    if (parsed.error) {
+      throw new LlmServiceError(parsed.error.message || 'AI 服务返回错误', {
+        statusCode: 502,
+        providerCode: parsed.error.code || null,
+        providerMessage: parsed.error.message || JSON.stringify(parsed.error)
+      });
+    }
+
+    const content = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.message?.content || '';
+    if (content) handlers.onToken?.(content);
+
+    return false;
+  };
+
+  try {
+    for await (const chunk of response.body) {
+      if (options.signal?.aborted) break;
+      buffer += decoder.write(chunk);
+
+      let separatorIndex = buffer.search(/\r?\n\r?\n/);
+      while (separatorIndex !== -1) {
+        const separator = buffer.slice(separatorIndex).match(/^\r?\n\r?\n/)?.[0] || '\n\n';
+        const block = buffer.slice(0, separatorIndex);
+        buffer = buffer.slice(separatorIndex + separator.length);
+        const done = consumeEventBlock(block);
+        if (done) {
+          handlers.onDone?.();
+          return;
+        }
+        separatorIndex = buffer.search(/\r?\n\r?\n/);
+      }
+    }
+
+    buffer += decoder.end();
+    if (buffer.trim()) consumeEventBlock(buffer);
+    handlers.onDone?.();
+  } catch (error) {
+    console.error("LLM Stream Error:", error);
+    if (error instanceof LlmServiceError) throw error;
+    throw new LlmServiceError(`生成学习计划失败：${error.message}`, {
+      statusCode: 502
+    });
+  }
+};
+
+const streamStudyPlan = async (userQuery, handlers = {}, options = {}) => {
+  return streamChatCompletion(buildStudyPlanMessages(userQuery), handlers, options);
 };
 
 /**
@@ -318,6 +466,8 @@ const chatCompletion = async (messages, options = {}) => {
 
 module.exports = {
   generateStudyPlan,
+  streamStudyPlan,
+  streamChatCompletion,
   chatCompletion,
   findRelevantContext,
   filterThinkingChain,

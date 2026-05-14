@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { Bot, Send, User, Sparkles } from 'lucide-react';
-import { generateStudyPlan } from '../services/baiduService';
+import { streamStudyPlan } from '../services/baiduService';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage, ChatSender } from '../types';
 import { Link } from 'react-router-dom';
@@ -17,6 +17,10 @@ const AiTutor: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const shouldShowTyping = isLoading && (
+    messages[messages.length - 1]?.sender !== ChatSender.AI ||
+    !messages[messages.length - 1]?.text
+  );
 
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
@@ -37,28 +41,36 @@ const AiTutor: React.FC = () => {
       text: input,
       timestamp: new Date()
     };
+    const aiMsgId = `${Date.now() + 1}`;
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => [
+      ...prev,
+      userMsg,
+      {
+        id: aiMsgId,
+        sender: ChatSender.AI,
+        text: '',
+        timestamp: new Date()
+      }
+    ]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const responseText = await generateStudyPlan(userMsg.text);
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: ChatSender.AI,
-        text: responseText,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMsg]);
+      const responseText = await streamStudyPlan(userMsg.text, (_token, fullText) => {
+        setMessages(prev => prev.map(msg => (
+          msg.id === aiMsgId ? { ...msg, text: fullText } : msg
+        )));
+      });
+
+      setMessages(prev => prev.map(msg => (
+        msg.id === aiMsgId ? { ...msg, text: responseText } : msg
+      )));
     } catch (e) {
       console.error(e);
-      setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          sender: ChatSender.AI,
-          text: "系统繁忙，请稍后再试。",
-          timestamp: new Date()
-      }]);
+      setMessages(prev => prev.map(msg => (
+        msg.id === aiMsgId ? { ...msg, text: "系统繁忙，请稍后再试。" } : msg
+      )));
     } finally {
       setIsLoading(false);
     }
@@ -120,6 +132,10 @@ const AiTutor: React.FC = () => {
                                     {(() => {
                                         // 将<think>标签内容提取并转换为带样式的div
                                         let processedText = msg.text;
+
+                                        if (!processedText) {
+                                            return <span className="text-gray-400">小卓正在思考...</span>;
+                                        }
                                         
                                         // 处理大写和小写的think标签
                                         processedText = processedText.replace(/<THINK>([\s\S]*?)<\/THINK>/g, '<think>$1</think>');
@@ -176,7 +192,7 @@ const AiTutor: React.FC = () => {
                         </div>
                     </div>
                 ))}
-                {isLoading && (
+                {shouldShowTyping && (
                     <div className="flex justify-start">
                          <div className="flex items-center space-x-2 p-4 bg-white rounded-2xl rounded-tl-none shadow-sm border border-gray-100">
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
