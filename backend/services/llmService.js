@@ -119,6 +119,26 @@ const normalizeConversationHistory = (history = []) => {
 
 const isContinuationQuery = (query) => /^(继续|接着说|继续说|往下说|展开|继续展开|more|continue)$/i.test(String(query || '').trim());
 
+const isJointTrainingIntent = (query) => {
+  const text = String(query || '');
+  const explicitTerms = [
+    '联培',
+    '联合培养',
+    '校企课题',
+    '校企联合',
+    '企业课题',
+    '入企课题',
+    '入企方向',
+    '课题目录',
+    '课题库'
+  ];
+  if (explicitTerms.some((term) => text.includes(term))) return true;
+
+  const preStudyTerms = ['前置学习', '前置知识', '入企前', '进企业前', '提前学', '预先学'];
+  const enterpriseTerms = ['星网', '中国星网', '华为', '中国电信', '中国联通', '中国移动', '中国通号', '中国电科', '奇安信'];
+  return preStudyTerms.some((term) => text.includes(term)) && enterpriseTerms.some((term) => text.includes(term));
+};
+
 const buildStudyPlanMessages = (userQuery, history = []) => {
   const conversationHistory = normalizeConversationHistory(history);
   const searchQuery = [
@@ -289,12 +309,12 @@ const detectJointTrainingFilters = (query) => {
 };
 
 const isJointTrainingQuery = (query, filters) => {
-  const text = String(query || '');
-  const triggerTerms = ['联培', '课题', '校企', '企业', '前置学习', '学习哪些', '学习路径', '培养方案', '所在单位'];
-  return triggerTerms.some((term) => text.includes(term))
-    || filters.enterprises.length > 0
+  return isJointTrainingIntent(query) && (
+    filters.enterprises.length > 0
     || filters.units.length > 0
-    || (filters.degrees.length > 0 && filters.fields.length > 0);
+    || filters.degrees.length > 0
+    || filters.fields.length > 0
+  );
 };
 
 const scoreJointTrainingRecord = (record, query, filters) => {
